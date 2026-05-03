@@ -71,12 +71,47 @@ class UpdateProfileRequest(ApiModel):
     phone: str = Field(min_length=8, max_length=25)
 
 
+class EmployeeBase(ApiModel):
+    full_name: str = Field(alias="fullName", min_length=1, max_length=255)
+    email: EmailStr
+    phone: str = Field(min_length=8, max_length=25)
+    designation: Optional[str] = Field(default=None, max_length=120)
+    department: Optional[str] = Field(default=None, max_length=120)
+    manager_id: Optional[str] = Field(default=None, alias="managerId")
+    work_location: Optional[str] = Field(default=None, alias="workLocation", max_length=120)
+
+
+class EmployeeCreateRequest(EmployeeBase):
+    password: str = Field(min_length=6, max_length=255)
+
+
+class EmployeeUpdateRequest(ApiModel):
+    full_name: Optional[str] = Field(default=None, alias="fullName", min_length=1, max_length=255)
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = Field(default=None, min_length=8, max_length=25)
+    password: Optional[str] = Field(default=None, min_length=6, max_length=255)
+    designation: Optional[str] = Field(default=None, max_length=120)
+    department: Optional[str] = Field(default=None, max_length=120)
+    manager_id: Optional[str] = Field(default=None, alias="managerId")
+    work_location: Optional[str] = Field(default=None, alias="workLocation", max_length=120)
+    is_active: Optional[bool] = Field(default=None, alias="isActive")
+
+
 class UserOut(ApiModel):
     id: str
     full_name: Optional[str] = None
     email: str
     phone: Optional[str] = None
     role: str
+
+
+class EmployeeOut(UserOut):
+    employee_code: str = Field(alias="employeeCode")
+    designation: Optional[str] = None
+    department: Optional[str] = None
+    manager_id: Optional[str] = Field(default=None, alias="managerId")
+    work_location: Optional[str] = Field(default=None, alias="workLocation")
+    is_active: bool = Field(alias="isActive")
 
 
 class TokenPair(ApiModel):

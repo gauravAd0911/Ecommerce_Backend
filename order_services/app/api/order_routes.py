@@ -84,7 +84,7 @@ def _decode_hs256_subject(token: str) -> str | None:
         return None
     if payload.get("type") not in {None, "access"}:
         return None
-    subject = payload.get("sub")
+    subject = payload.get("sub") or payload.get("user_id")
     return str(subject) if subject else None
 
 
@@ -131,8 +131,20 @@ def _resolve_checkout_actor_id(
 
 
 def get_current_role(
+    authorization: Annotated[str | None, Header(alias="Authorization")] = None,
     x_role: Annotated[str | None, Header(alias="X-Role")] = None,
 ) -> str:
+    if authorization and authorization.lower().startswith("bearer "):
+        try:
+            payload = json.loads(_b64url_decode(authorization.split(" ", 1)[1].strip().split(".")[1]))
+            role = str(payload.get("role") or "").strip().lower()
+            if role == "vendor":
+                return "employee"
+            if role:
+                return role
+        except (ValueError, json.JSONDecodeError, IndexError):
+            pass
+
     return (x_role or "").strip().lower()
 
 
@@ -154,6 +166,9 @@ def _order_summary(order) -> dict:
         "total": order.total,
         "itemCount": order.item_count,
         "primaryLabel": order.primary_label,
+        "assignedToEmployeeId": order.assigned_to_employee_id,
+        "assignedByAdminId": order.assigned_by_admin_id,
+        "statusNote": order.status_note,
     }
 
 
@@ -164,6 +179,9 @@ def _order_detail(order, service: OrderService) -> dict:
             "items": [_item_dict(item) for item in service.order_repo.get_items_for_order(order.id)],
             "shippingAddress": order.shipping_address,
             "paymentMethod": order.payment_method,
+            "assignedToEmployeeId": order.assigned_to_employee_id,
+            "assignedByAdminId": order.assigned_by_admin_id,
+            "statusNote": order.status_note,
         }
     )
     return detail
@@ -272,8 +290,13 @@ def create_order(
 
 
 @router.get("")
-def get_orders(db: DBSession, user_id: CurrentUserId):
+def get_orders(db: DBSession, user_id: CurrentUserId, role: Annotated[str, Depends(get_current_role)]):
     service = OrderService(db)
+    if role in {"admin", "employee"}:
+        return _success(
+            "Orders fetched successfully.",
+            {"orders": [_order_summary(order) for order in service.order_repo.get_all_orders()]},
+        )
     return _success(
         "Orders fetched successfully.",
         {"orders": [_order_summary(order) for order in service.order_repo.get_orders_for_user(user_id)]},
@@ -281,9 +304,12 @@ def get_orders(db: DBSession, user_id: CurrentUserId):
 
 
 @router.get("/{order_id}")
-def get_order(order_id: str, db: DBSession, user_id: CurrentUserId):
+def get_order(order_id: str, db: DBSession, user_id: CurrentUserId, role: Annotated[str, Depends(get_current_role)]):
     service = OrderService(db)
-    order = service.order_repo.get_order_for_user(order_id, user_id)
+    if role in {"admin", "employee"}:
+        order = service.order_repo.get_order(order_id) if str(order_id).isdigit() else service.order_repo.get_order_by_number(order_id)
+    else:
+        order = service.order_repo.get_order_for_user(order_id, user_id)
     if not order:
         _failure(404, "ORDER_NOT_FOUND", "Order not found")
     return _success("Order fetched successfully.", _order_detail(order, service))
@@ -320,11 +346,35 @@ def update_order_status(
     if next_status not in _allowed_next_statuses(order.status):
         _failure(409, "INVALID_ORDER_TRANSITION", f"Cannot change order status from {order.status} to {next_status}.")
 
+    order.status_note = payload.get("note")
+    order.last_updated_by = payload.get("actorUserId")
     service.order_repo.update_status(order.id, next_status)
     service.tracking_repo.add_tracking(order.id, next_status, payload.get("note") or f"Status updated to {next_status}")
     db.commit()
     refreshed = service.order_repo.get_order(order.id)
     return _success("Order status updated successfully.", _order_detail(refreshed, service))
+
+
+@router.patch("/admin/{order_id}/assign")
+def assign_order(
+    order_id: str,
+    payload: dict,
+    db: DBSession,
+    role: Annotated[str, Depends(get_current_role)],
+    actor_user_id: CurrentUserId,
+):
+    _require_operational_role(role)
+    employee_id = str(payload.get("employeeId") or payload.get("employee_id") or "").strip()
+    if not employee_id:
+        _failure(400, "VALIDATION_ERROR", "Employee id is required.")
+
+    service = OrderService(db)
+    order = service.order_repo.get_order(order_id) if str(order_id).isdigit() else service.order_repo.get_order_by_number(str(order_id))
+    if not order:
+        _failure(404, "ORDER_NOT_FOUND", "Order not found")
+
+    order = service.order_repo.assign_order(order.id, employee_id, actor_user_id)
+    return _success("Order assigned successfully.", _order_detail(order, service))
 
 
 @router.get("/admin/dashboard/summary")

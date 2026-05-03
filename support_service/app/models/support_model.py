@@ -8,8 +8,8 @@ Defines database models for:
 
 from sqlalchemy import (
     Column,
-    String,
     BigInteger,
+    String,
     Text,
     Boolean,
     TIMESTAMP,
@@ -29,11 +29,7 @@ class SupportTicket(Base):
     id = Column(BigInteger, primary_key=True, index=True)
 
     # Nullable for guest users
-    user_id = Column(
-        BigInteger,
-        ForeignKey("users.id", ondelete="SET NULL"),
-        nullable=True
-    )
+    user_id = Column(String(64), nullable=True, index=True)
 
     name = Column(String(100), nullable=False)
     email = Column(String(150), nullable=False)
@@ -43,6 +39,12 @@ class SupportTicket(Base):
 
     status = Column(String(50), default="OPEN")
     priority = Column(String(20), default="MEDIUM")
+    assigned_to_employee_id = Column(String(64), nullable=True, index=True)
+    assigned_by_admin_id = Column(String(64), nullable=True)
+    internal_note = Column(Text, nullable=True)
+    resolution_note = Column(Text, nullable=True)
+    resolved_by = Column(String(64), nullable=True)
+    resolved_at = Column(TIMESTAMP, nullable=True)
 
     created_at = Column(
         TIMESTAMP,

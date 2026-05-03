@@ -5,6 +5,7 @@ import uuid
 
 from sqlalchemy import Boolean, Column, DateTime, Enum as SQLEnum, ForeignKey, Integer, String
 from sqlalchemy.dialects.mysql import CHAR
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from database import Base
@@ -67,6 +68,33 @@ class User(Base):
 
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, onupdate=func.now())
+
+    employee_profile = relationship(
+        "EmployeeProfile",
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+
+
+class EmployeeProfile(Base):
+    """Operational profile for employee accounts."""
+
+    __tablename__ = "employee_profiles"
+
+    id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(CHAR(36), ForeignKey("users.id"), nullable=False, unique=True, index=True)
+    employee_code = Column(String(40), nullable=False, unique=True, index=True)
+    designation = Column(String(120), nullable=True)
+    department = Column(String(120), nullable=True)
+    manager_id = Column(CHAR(36), ForeignKey("users.id"), nullable=True)
+    work_location = Column(String(120), nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    joined_at = Column(DateTime, server_default=func.now())
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, onupdate=func.now())
+
+    user = relationship("User", foreign_keys=[user_id], back_populates="employee_profile")
 
 
 class OtpContext(Base):

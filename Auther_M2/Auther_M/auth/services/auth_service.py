@@ -2,8 +2,13 @@
 
 from sqlalchemy.orm import Session
 
-from auth.models.user import Role, User
-from auth.schemas.user_schema import SignupInitiateRequest, UpdateProfileRequest
+from auth.models.user import EmployeeProfile, Role, User
+from auth.schemas.user_schema import (
+    EmployeeCreateRequest,
+    EmployeeUpdateRequest,
+    SignupInitiateRequest,
+    UpdateProfileRequest,
+)
 from auth.services.identifier_service import normalize_email, normalize_phone
 from auth.utils.password import hash_password, verify_password
 
@@ -87,5 +92,122 @@ def update_current_user(db: Session, user: User, payload: UpdateProfileRequest) 
     db.commit()
     db.refresh(user)
     return user
+
+
+def _employee_code_sequence(db: Session) -> int:
+    employee_count = db.query(EmployeeProfile).count()
+    return employee_count + 1
+
+
+def build_employee_code(db: Session) -> str:
+    return f"EMP-{_employee_code_sequence(db):04d}"
+
+
+def get_employee_by_id(db: Session, employee_id: str) -> User | None:
+    return (
+        db.query(User)
+        .filter(User.id == employee_id)
+        .filter(User.role == Role.VENDOR)
+        .first()
+    )
+
+
+def list_employees(db: Session) -> list[User]:
+    return (
+        db.query(User)
+        .filter(User.role == Role.VENDOR)
+        .order_by(User.created_at.desc())
+        .all()
+    )
+
+
+def create_employee_account(db: Session, payload: EmployeeCreateRequest) -> User:
+    email = normalize_email(payload.email)
+    phone = normalize_phone(payload.phone)
+
+    if get_user_by_email(db, email):
+        raise ValueError("Email already exists")
+    if get_user_by_phone(db, phone):
+        raise ValueError("Phone already exists")
+
+    user = User(
+        full_name=payload.full_name,
+        email=email,
+        phone=phone,
+        password_hash=hash_password(payload.password),
+        role=Role.VENDOR,
+        is_active=True,
+        is_verified=True,
+    )
+    db.add(user)
+    db.flush()
+
+    profile = EmployeeProfile(
+        user_id=user.id,
+        employee_code=build_employee_code(db),
+        designation=payload.designation,
+        department=payload.department,
+        manager_id=payload.manager_id,
+        work_location=payload.work_location,
+        is_active=True,
+    )
+    db.add(profile)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def update_employee_account(db: Session, employee: User, payload: EmployeeUpdateRequest) -> User:
+    if payload.email is not None:
+        email = normalize_email(payload.email)
+        existing_email_user = get_user_by_email(db, email)
+        if existing_email_user and existing_email_user.id != employee.id:
+            raise ValueError("Email already exists")
+        employee.email = email
+
+    if payload.phone is not None:
+        phone = normalize_phone(payload.phone)
+        existing_phone_user = get_user_by_phone(db, phone)
+        if existing_phone_user and existing_phone_user.id != employee.id:
+            raise ValueError("Phone already exists")
+        employee.phone = phone
+
+    if payload.full_name is not None:
+        employee.full_name = payload.full_name
+
+    if payload.password:
+        employee.password_hash = hash_password(payload.password)
+
+    profile = employee.employee_profile or EmployeeProfile(
+        user_id=employee.id,
+        employee_code=build_employee_code(db),
+    )
+    if employee.employee_profile is None:
+        db.add(profile)
+
+    if payload.designation is not None:
+        profile.designation = payload.designation
+    if payload.department is not None:
+        profile.department = payload.department
+    if payload.manager_id is not None:
+        profile.manager_id = payload.manager_id
+    if payload.work_location is not None:
+        profile.work_location = payload.work_location
+    if payload.is_active is not None:
+        profile.is_active = payload.is_active
+        employee.is_active = payload.is_active
+
+    db.commit()
+    db.refresh(employee)
+    return employee
+
+
+def delete_employee_account(db: Session, employee: User) -> User:
+    employee.is_active = False
+    if employee.employee_profile:
+        employee.employee_profile.is_active = False
+    db.commit()
+    db.refresh(employee)
+    return employee
 
 

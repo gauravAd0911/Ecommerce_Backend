@@ -10,7 +10,9 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from auth.routes.v1_auth import public_router, router as v1_auth_router
+from auth.routes.v1_auth import admin_workspace_router, public_router, router as v1_auth_router
+from auth.models import user as user_models
+from database import Base, engine
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 load_dotenv(dotenv_path=str(ROOT_DIR / ".env"), override=True)
@@ -31,6 +33,12 @@ app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="stat
 
 app.include_router(v1_auth_router, prefix="/api/v1/auth", tags=["Auth"])
 app.include_router(public_router, prefix="/auth", tags=["Unified Auth"])
+app.include_router(admin_workspace_router, tags=["Admin Workspace"])
+
+
+@app.on_event("startup")
+def startup() -> None:
+    Base.metadata.create_all(bind=engine)
 
 
 def _is_auth_request(request: Request) -> bool:

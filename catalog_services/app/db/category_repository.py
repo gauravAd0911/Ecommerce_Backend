@@ -33,3 +33,17 @@ class CategoryRepository:
         )
         result = await self._session.execute(query)
         return list(result.scalars().all())
+
+    async def get_by_slug_or_name(self, value: str) -> Category | None:
+        normalized = value.strip().lower()
+        query = select(Category).where(
+            (Category.slug == normalized) | (Category.name.ilike(value.strip()))
+        )
+        result = await self._session.execute(query)
+        return result.scalar_one_or_none()
+
+    async def create(self, *, name: str, slug: str) -> Category:
+        category = Category(name=name.strip(), slug=slug.strip().lower(), is_active=True)
+        self._session.add(category)
+        await self._session.flush()
+        return category

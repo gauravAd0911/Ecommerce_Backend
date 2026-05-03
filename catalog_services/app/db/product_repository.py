@@ -143,3 +143,30 @@ class ProductRepository:
         )
         result = await self._session.execute(query)
         return list(result.scalars().all())
+
+    async def get_any_by_identifier(self, product_id: int | str) -> Optional[Product]:
+        query = select(Product).options(
+            selectinload(Product.images),
+            selectinload(Product.tags),
+            selectinload(Product.category),
+        )
+        if isinstance(product_id, int) or str(product_id).isdigit():
+            query = query.where(Product.id == int(product_id))
+        else:
+            query = query.where(Product.slug == str(product_id))
+        result = await self._session.execute(query)
+        return result.scalar_one_or_none()
+
+    async def create_product(self, product: Product) -> Product:
+        self._session.add(product)
+        await self._session.flush()
+        return product
+
+    async def save_image(self, product_id: int, image_url: str) -> ProductImage:
+        image = ProductImage(product_id=product_id, url=image_url, is_primary=True, sort_order=0)
+        self._session.add(image)
+        await self._session.flush()
+        return image
+
+    async def delete_product(self, product: Product) -> None:
+        await self._session.delete(product)

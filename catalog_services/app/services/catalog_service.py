@@ -1,6 +1,8 @@
 """Catalog service: business logic and schema assembly."""
 
+import re
 from typing import Optional
+from decimal import Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,6 +16,7 @@ from app.db.category_repository import CategoryRepository
 from app.db.product_repository import ProductRepository
 from app.models.catalog import Product
 from app.schemas.catalog import (
+    AdminProductUpsertSchema,
     BannerSchema,
     CategoryListResponse,
     CategorySchema,
@@ -166,3 +169,70 @@ class CatalogService:
             price_range=PriceRangeSchema(min=_f(price_min), max=_f(price_max)),
             sort_options=sorted(ALLOWED_SORT_VALUES),
         )
+
+    async def create_admin_product(self, payload: AdminProductUpsertSchema) -> ProductDetailSchema:
+        category = await self._categories.get_by_slug_or_name(payload.category)
+        if not category:
+            category_slug = re.sub(r"[^a-z0-9]+", "-", payload.category.strip().lower()).strip("-")
+            category = await self._categories.create(name=payload.category, slug=category_slug or "general")
+
+        slug = re.sub(r"[^a-z0-9]+", "-", payload.name.strip().lower()).strip("-")
+        product = Product(
+            category_id=category.id,
+            name=payload.name.strip(),
+            slug=slug or "product",
+            short_description=(payload.short_description or payload.description)[:500],
+            long_description=payload.description,
+            price=Decimal(str(payload.price)),
+            size=payload.size,
+            skin_type=payload.skin_type,
+            stock_quantity=payload.stock,
+            availability="in_stock" if payload.stock > 0 else "out_of_stock",
+            is_featured=payload.is_featured,
+            is_active=True,
+        )
+        await self._products.create_product(product)
+        if payload.image_url:
+            await self._products.save_image(product.id, payload.image_url)
+        await self._products._session.refresh(product)
+        return _to_product_detail(await self._products.get_any_by_identifier(product.id))
+
+    async def update_admin_product(self, product_id: int | str, payload: AdminProductUpsertSchema) -> ProductDetailSchema | None:
+        product = await self._products.get_any_by_identifier(product_id)
+        if not product:
+            return None
+
+        category = await self._categories.get_by_slug_or_name(payload.category)
+        if not category:
+            category_slug = re.sub(r"[^a-z0-9]+", "-", payload.category.strip().lower()).strip("-")
+            category = await self._categories.create(name=payload.category, slug=category_slug or "general")
+
+        product.category_id = category.id
+        product.name = payload.name.strip()
+        product.short_description = (payload.short_description or payload.description)[:500]
+        product.long_description = payload.description
+        product.price = Decimal(str(payload.price))
+        product.stock_quantity = payload.stock
+        product.availability = "in_stock" if payload.stock > 0 else "out_of_stock"
+        product.is_featured = payload.is_featured
+        product.size = payload.size
+        product.skin_type = payload.skin_type
+        product.slug = re.sub(r"[^a-z0-9]+", "-", payload.name.strip().lower()).strip("-") or product.slug
+
+        if payload.image_url:
+            if product.images:
+                product.images[0].url = payload.image_url
+                product.images[0].is_primary = True
+            else:
+                await self._products.save_image(product.id, payload.image_url)
+
+        await self._products._session.flush()
+        return _to_product_detail(await self._products.get_any_by_identifier(product.id))
+
+    async def delete_admin_product(self, product_id: int | str) -> bool:
+        product = await self._products.get_any_by_identifier(product_id)
+        if not product:
+            return False
+        await self._products.delete_product(product)
+        await self._products._session.flush()
+        return True

@@ -27,7 +27,7 @@ class OrderRepository:
             self.db.add(db_item)
 
     def get_all_orders(self):
-        return self.db.query(Order).all()
+        return self.db.query(Order).order_by(Order.created_at.desc()).all()
 
     def get_orders_for_user(self, user_id):
         return self.db.query(Order).filter(Order.user_id == user_id).all()
@@ -55,6 +55,17 @@ class OrderRepository:
             return None
 
         order.status = status
+        self.db.commit()
+        self.db.refresh(order)
+        return order
+
+    def assign_order(self, order_id, employee_id, assigned_by):
+        order = self.get_order(order_id)
+        if not order:
+            return None
+
+        order.assigned_to_employee_id = employee_id
+        order.assigned_by_admin_id = assigned_by
         self.db.commit()
         self.db.refresh(order)
         return order

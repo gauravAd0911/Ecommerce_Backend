@@ -144,3 +144,18 @@ class HomeResponse(BaseModel):
     banners:           List[BannerSchema]
     featured_products: List[ProductSummarySchema]
     top_categories:    List[CategorySchema]
+
+
+class AdminProductUpsertSchema(BaseModel):
+    name: str
+    price: float
+    stock: int = Field(ge=0)
+    category: str
+    description: str
+    image_url: Optional[str] = Field(default=None, alias="imageUrl")
+    short_description: Optional[str] = Field(default=None, alias="shortDescription")
+    size: Optional[str] = None
+    skin_type: Optional[str] = Field(default=None, alias="skinType")
+    is_featured: bool = Field(default=False, alias="isFeatured")
+
+    model_config = ConfigDict(populate_by_name=True)

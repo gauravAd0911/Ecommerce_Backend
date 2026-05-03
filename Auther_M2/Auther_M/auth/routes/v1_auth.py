@@ -11,6 +11,9 @@ from auth.models.user import OtpPurpose, User, to_public_role
 from auth.schemas.user_schema import (
     APIResponse,
     AuthResponse,
+    EmployeeCreateRequest,
+    EmployeeOut,
+    EmployeeUpdateRequest,
     ForgotInitiateRequest,
     ForgotInitiateResponse,
     ForgotVerifyRequest,
@@ -27,8 +30,13 @@ from auth.schemas.user_schema import (
 )
 from auth.services.auth_service import (
     authenticate_by_identifier,
+    create_employee_account,
     create_pending_user,
+    delete_employee_account,
+    get_employee_by_id,
+    list_employees,
     mark_user_verified,
+    update_employee_account,
     update_current_user,
 )
 from auth.services.identifier_service import normalize_identifier
@@ -39,6 +47,7 @@ from auth.services.twilio_service import send_otp_sms
 
 router = APIRouter()
 public_router = APIRouter()
+admin_workspace_router = APIRouter()
 
 OTP_SENT_MESSAGE = "OTP sent successfully."
 
@@ -68,6 +77,23 @@ def _user_out(user: User) -> UserOut:
     )
 
 
+def _employee_out(user: User) -> EmployeeOut:
+    profile = user.employee_profile
+    return EmployeeOut(
+        id=user.id,
+        full_name=user.full_name,
+        email=user.email,
+        phone=user.phone,
+        role=to_public_role(user.role),
+        employeeCode=profile.employee_code if profile else "",
+        designation=profile.designation if profile else None,
+        department=profile.department if profile else None,
+        managerId=profile.manager_id if profile else None,
+        workLocation=profile.work_location if profile else None,
+        isActive=bool(profile.is_active if profile else user.is_active),
+    )
+
+
 def _token_payload(access_token: str, refresh_token: str) -> dict:
     return {
         "tokens": {
@@ -84,6 +110,12 @@ def _auth_api_response(message: str, access_token: str, refresh_token: str, user
     payload = _token_payload(access_token, refresh_token)
     payload["user"] = _user_out(user).model_dump()
     return APIResponse(success=True, message=message, data=payload)
+
+
+def _require_admin(current_user: User) -> User:
+    if to_public_role(current_user.role) != "admin":
+        _error(403, "FORBIDDEN", "Admin access required.")
+    return current_user
 
 
 @router.post(
@@ -481,4 +513,80 @@ def public_update_me(
         success=True,
         message="Profile updated successfully.",
         data={"user": updated_user.model_dump()},
+    )
+
+
+@public_router.get("/admin/employees", response_model=APIResponse)
+@admin_workspace_router.get("/admin/employees", response_model=APIResponse)
+def public_list_employees(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    _require_admin(current_user)
+    employees = [_employee_out(employee).model_dump() for employee in list_employees(db)]
+    return APIResponse(success=True, message="Employees fetched successfully.", data={"employees": employees})
+
+
+@public_router.post("/admin/employees", response_model=APIResponse)
+@admin_workspace_router.post("/admin/employees", response_model=APIResponse)
+def public_create_employee(
+    payload: EmployeeCreateRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    _require_admin(current_user)
+    try:
+        employee = create_employee_account(db, payload)
+    except ValueError as exc:
+        message = str(exc)
+        field_name = "email" if "Email" in message else "phone"
+        _error(400, "VALIDATION_ERROR", message, [{"field": field_name, "message": message}])
+    return APIResponse(
+        success=True,
+        message="Employee created successfully.",
+        data={"employee": _employee_out(employee).model_dump()},
+    )
+
+
+@public_router.put("/admin/employees/{employee_id}", response_model=APIResponse)
+@admin_workspace_router.put("/admin/employees/{employee_id}", response_model=APIResponse)
+def public_update_employee(
+    employee_id: str,
+    payload: EmployeeUpdateRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    _require_admin(current_user)
+    employee = get_employee_by_id(db, employee_id)
+    if not employee:
+        _error(404, "NOT_FOUND", "Employee account not found.")
+    try:
+        employee = update_employee_account(db, employee, payload)
+    except ValueError as exc:
+        message = str(exc)
+        field_name = "email" if "Email" in message else "phone"
+        _error(400, "VALIDATION_ERROR", message, [{"field": field_name, "message": message}])
+    return APIResponse(
+        success=True,
+        message="Employee updated successfully.",
+        data={"employee": _employee_out(employee).model_dump()},
+    )
+
+
+@public_router.delete("/admin/employees/{employee_id}", response_model=APIResponse)
+@admin_workspace_router.delete("/admin/employees/{employee_id}", response_model=APIResponse)
+def public_delete_employee(
+    employee_id: str,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    _require_admin(current_user)
+    employee = get_employee_by_id(db, employee_id)
+    if not employee:
+        _error(404, "NOT_FOUND", "Employee account not found.")
+    employee = delete_employee_account(db, employee)
+    return APIResponse(
+        success=True,
+        message="Employee removed successfully.",
+        data={"employee": _employee_out(employee).model_dump()},
     )
