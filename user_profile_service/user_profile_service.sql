@@ -40,6 +40,7 @@ CREATE TABLE addresses (
     state VARCHAR(100) NOT NULL,
     postal_code VARCHAR(20) NOT NULL,
     country VARCHAR(100) DEFAULT 'India',
+    address_type VARCHAR(40) DEFAULT 'Home',
 
     is_default BOOLEAN DEFAULT FALSE,
 

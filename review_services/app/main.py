@@ -8,9 +8,11 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.v1.router import api_router
+from app.core.config import settings
 from app.core.exceptions import (
     ConflictError,
     EligibilityError,
@@ -55,8 +57,25 @@ def create_app() -> FastAPI:
         lifespan=_lifespan,
     )
 
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.allowed_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
     _register_exception_handlers(app)
     app.include_router(api_router)
+
+    @app.get("/health")
+    async def health() -> dict[str, str]:
+        return {"status": "ok", "service": "Review Service"}
+
+    @app.get("/")
+    async def root() -> dict[str, str]:
+        return {"message": "Review Service is running"}
+
     return app
 
 

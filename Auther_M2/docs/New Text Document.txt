@@ -1,0 +1,78 @@
+Auther_M Project Installation Guide
+Project path:
+C:\Advance Project\Auther_M
+This project is a FastAPI + MySQL authentication app.
+1. Open PowerShell
+   Run:
+   cd "C:\Advance Project\Auther_M"
+2. Create a virtual environment
+   Run:
+   py -3.11 -m venv venv
+3. Activate the virtual environment
+   Run:
+   .\venv\Scripts\Activate.ps1
+4. Install Python packages
+   Run:
+   pip install -r .\auth\requirements.txt
+   pip install mysql-connector-python email-validator jinja2
+Note:
+The code uses mysql+mysqlconnector in auth\database.py, so mysql-connector-python is required.
+EmailStr in Pydantic needs email-validator.
+Templates and static pages use Jinja2.
+5. Create MySQL database
+   Open MySQL and run:
+   CREATE DATABASE auth_db;
+6. Configure database connection
+   Open this file:
+   C:\Advance Project\Auther_M\auth\database.py
+   Default connection in the code:
+   mysql+mysqlconnector://root:Gaurav%401234@127.0.0.1:3306/auth_db
+   Change username, password, host, port, or database name if needed.
+7. Configure JWT secret
+   Open this file:
+   C:\Advance Project\Auther_M\auth\.env
+   Example:
+   JWT_SECRET=your-super-secret-jwt-key-change-in-production
+Note:
+The current code reads JWT_SECRET from auth\.env, but database.py is hardcoded for MySQL.
+8. Start the project
+   Run:
+   uvicorn auth.main:app --reload --port 8001
+9. Open in browser
+   Use:
+   http://127.0.0.1:8001
+10. Optional API docs
+    Use:
+    http://127.0.0.1:8001/docs
+Useful commands
+Activate environment:
+.\venv\Scripts\Activate.ps1
+Deactivate environment:
+deactivate
+Run server again:
+uvicorn auth.main:app --reload --port 8001
+Common problems
+1. ModuleNotFoundError for mysql connector
+   Run:
+   pip install mysql-connector-python
+2. EmailStr import error
+   Run:
+   pip install email-validator
+3. Template or static page issue
+   Run:
+   pip install jinja2
+4. MySQL connection failed
+   Check:
+   - MySQL server is running
+   - auth_db exists
+   - username and password in auth\database.py are correct
+5. PowerShell script execution blocked
+   Run PowerShell as Administrator and run:
+   Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+Quick install commands
+cd "C:\Advance Project\Auther_M"
+py -3.11 -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r .\auth\requirements.txt
+pip install mysql-connector-python email-validator jinja2
+uvicorn auth.main:app --reload --port 8001

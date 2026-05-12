@@ -1,20 +1,29 @@
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
 from app.db.models.address import Address
 
 
 def create(db: Session, data: dict):
-    if data.get("is_default"):
-        db.query(Address).filter(Address.user_id == data["user_id"]).update({"is_default": False})
+    try:
+        if data.get("is_default"):
+            db.query(Address).filter(Address.user_id == data["user_id"]).update({"is_default": False})
 
-    address = Address(**data)
-    db.add(address)
-    db.commit()
-    db.refresh(address)
-    return address
+        address = Address(**data)
+        db.add(address)
+        db.commit()
+        db.refresh(address)
+        return address
+    except SQLAlchemyError:
+        db.rollback()
+        raise
 
 
 def get_by_user(db: Session, user_id: str):
     return db.query(Address).filter(Address.user_id == user_id).all()
+
+
+def count_by_user(db: Session, user_id: str):
+    return db.query(Address).filter(Address.user_id == user_id).count()
 
 
 def get_by_id(db: Session, address_id: str):
@@ -22,42 +31,54 @@ def get_by_id(db: Session, address_id: str):
 
 
 def update(db: Session, address: Address, data: dict):
-    for key, value in data.items():
-        if value is not None:
+    try:
+        if data.get("is_default") is True:
+            db.query(Address).filter(Address.user_id == address.user_id).update({"is_default": False})
+
+        for key, value in data.items():
             setattr(address, key, value)
 
-    db.commit()
-    db.refresh(address)
-    return address
+        db.commit()
+        db.refresh(address)
+        return address
+    except SQLAlchemyError:
+        db.rollback()
+        raise
 
 
 def delete(db: Session, address: Address):
-    user_id = address.user_id
-    address_id = address.id
-    was_default = address.is_default
-    db.delete(address)
-    if was_default:
-        replacement = db.query(Address).filter(Address.user_id == user_id, Address.id != address_id).first()
-        if replacement:
-            replacement.is_default = True
-    db.commit()
-    return {"message": "Deleted successfully"}
+    try:
+        user_id = address.user_id
+        address_id = address.id
+        was_default = address.is_default
+        db.delete(address)
+        if was_default:
+            replacement = db.query(Address).filter(Address.user_id == user_id, Address.id != address_id).first()
+            if replacement:
+                replacement.is_default = True
+        db.commit()
+        return {"message": "Deleted successfully"}
+    except SQLAlchemyError:
+        db.rollback()
+        raise
 
 
 def set_default(db: Session, user_id: str, address_id: str):
-    address = db.query(Address).filter(
-        Address.id == address_id,
-        Address.user_id == user_id,
-    ).first()
-    if not address:
-        raise ValueError("Address not found")
+    try:
+        address = db.query(Address).filter(
+            Address.id == address_id,
+            Address.user_id == user_id,
+        ).first()
+        if not address:
+            raise ValueError("Address not found")
 
-    # Reset all
-    db.query(Address).filter(Address.user_id == user_id).update({"is_default": False})
+        db.query(Address).filter(Address.user_id == user_id).update({"is_default": False})
 
-    # Set selected
-    address.is_default = True
+        address.is_default = True
 
-    db.commit()
-    db.refresh(address)
-    return address
+        db.commit()
+        db.refresh(address)
+        return address
+    except SQLAlchemyError:
+        db.rollback()
+        raise

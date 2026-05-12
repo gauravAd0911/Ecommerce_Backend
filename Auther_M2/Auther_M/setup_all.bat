@@ -15,7 +15,7 @@ set "SCHEMA_FILE=%ROOT%\schema.sql"
 
 set "DB_NAME=auth_m2_db"
 set "DB_USER=root"
-set "DB_PASS=Root"
+set "DB_PASS=Gaurav@123"
 set "DB_HOST=127.0.0.1"
 set "DB_PORT=3306"
 set "DB_URL=mysql+pymysql://%DB_USER%:%DB_PASS%@%DB_HOST%:%DB_PORT%/%DB_NAME%"
@@ -94,7 +94,7 @@ echo Schema applied.
 
 REM 5) Run server using venv python (avoids wrong venv)
 echo Starting FastAPI server...
-"%VENV_PY%" -m uvicorn auth.main:app --reload
+"%VENV_PY%" -m uvicorn auth.main:app --reload --port 8001
 
 pause
 exit /b 0

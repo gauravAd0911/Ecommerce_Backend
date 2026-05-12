@@ -23,6 +23,7 @@ class OtpInitiateResult:
     context_id: str
     otp: str
     otp_expiry_seconds: int
+    phone: str | None = None
 
 
 def create_or_refresh_context(
@@ -70,6 +71,7 @@ def create_or_refresh_context(
         context_id=context.id,
         otp=otp,
         otp_expiry_seconds=expiry_minutes * 60,
+        phone=context.phone,
     )
 
 
@@ -103,6 +105,7 @@ def resend_otp(db: Session, context_id: str, now: datetime | None = None) -> Otp
         context_id=context.id,
         otp=otp,
         otp_expiry_seconds=expiry_minutes * 60,
+        phone=context.phone,
     )
 
 

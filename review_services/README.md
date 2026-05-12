@@ -41,6 +41,9 @@ pip install -r requirements.txt
 ```
 
 3. Update `.env` with MySQL credentials and JWT settings.
+   `JWT_SECRET` and `JWT_ALGORITHM` must exactly match the auth service
+   (`Auther_M2/Auther_M/.env`) because review endpoints validate tokens issued
+   by that service.
 4. Apply `schema.sql` to the target MySQL database.
 5. Start the app:
 

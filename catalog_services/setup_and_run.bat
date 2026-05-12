@@ -139,13 +139,12 @@ set /p "DB_USER=        DB User       [default: root]       : "
 if "!DB_USER!"==""    set "DB_USER=root"
 
 echo        %YELLOW%Note:%RESET% password is visible while typing.
-set /p "DB_PASS=        DB Password    [default: Root]                     : "
+set /p "DB_PASS=        DB Password    [optional]                    : "
 
 set /p "APP_HOST=        App Host      [default: 0.0.0.0]    : "
 if "!APP_HOST!"==""   set "APP_HOST=0.0.0.0"
 
-set /p "APP_PORT=        App Port      [default: 8000]        : "
-if "!APP_PORT!"==""   set "APP_PORT=8000"
+set "APP_PORT=8014"
 
 set /p "APP_RELOAD=        Hot-reload?   (y/n) [default: y]    : "
 if /i "!APP_RELOAD!"=="n" (set "RELOAD_FLAG=") else (set "RELOAD_FLAG=true")
@@ -180,6 +179,9 @@ if /i "!APP_RELOAD!"=="n" (set "RELOAD_FLAG=") else (set "RELOAD_FLAG=true")
     echo.
     echo # CORS
     echo ALLOWED_ORIGINS=["*"]
+    echo.
+    echo # JWT
+    echo JWT_SECRET=your-super-secret-jwt-key-change-in-production
 ) > "%ENV_FILE%"
 
 echo %GREEN%[OK]%RESET% .env written.
@@ -201,9 +203,9 @@ if not defined DB_HOST     set "DB_HOST=localhost"
 if not defined DB_PORT     set "DB_PORT=3306"
 if not defined DB_NAME     set "DB_NAME=abt_dev"
 if not defined DB_USER     set "DB_USER=root"
-if not defined DB_PASS     set "DB_PASS=Root"
+if not defined DB_PASS     set "DB_PASS=Gaurav@123"
 if not defined APP_HOST    set "APP_HOST=0.0.0.0"
-if not defined APP_PORT    set "APP_PORT=8000"
+if not defined APP_PORT    set "APP_PORT=8014"
 if not defined APP_RELOAD  set "APP_RELOAD=true"
 
 :: =============================================================================

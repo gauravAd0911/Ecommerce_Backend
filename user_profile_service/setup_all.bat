@@ -9,7 +9,7 @@ REM ===============================
 REM CONFIG (SET YOUR DB USER HERE)
 REM ===============================
 set DB_USER=root
-set DB_PASS=Root
+set DB_PASS=Gaurav@123
 set DB_NAME=abt_dev
 
 REM ===============================
@@ -23,14 +23,25 @@ call venv\Scripts\activate
 REM ===============================
 REM 2. INSTALL REQUIREMENTS
 REM ===============================
-pip install --upgrade pip
-pip install -r requirements.txt
+python -m pip install --upgrade pip
+if %errorlevel% neq 0 (
+    echo Failed to upgrade pip.
+    pause
+    exit /b 1
+)
+
+python -m pip install -r requirements.txt
+if %errorlevel% neq 0 (
+    echo Failed to install Python requirements.
+    pause
+    exit /b 1
+)
 
 REM ===============================
 REM 3. CREATE .env
 REM ===============================
 if not exist .env (
-    echo DATABASE_URL=mysql+pymysql://%DB_USER%:%DB_PASS%@localhost:3306/%DB_NAME%> .env
+    python -c "open('.env','w', encoding='utf-8').write('DATABASE_URL=mysql+pymysql://root:Gaurav%%40123@localhost:3306/abt_dev\nDB_USER=root\nDB_PASSWORD=Gaurav@123\nDB_HOST=localhost\nDB_PORT=3306\nDB_NAME=abt_dev\n')"
 )
 
 REM ===============================
@@ -50,11 +61,12 @@ if %errorlevel% neq 0 (
 REM ===============================
 REM 5. RUN SQL
 REM ===============================
-mysql -u %DB_USER% -p%DB_PASS% %DB_NAME% < sql\user_profile_service.sql
+mysql -u %DB_USER% -p%DB_PASS% %DB_NAME% < user_profile_service.sql
 
 REM ===============================
 REM 6. RUN SERVER
 REM ===============================
-uvicorn app.main:app --reload
+echo Starting server on port 8009...
+uvicorn app.main:app --reload --port 8009
 
 pause

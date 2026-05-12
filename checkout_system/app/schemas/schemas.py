@@ -148,7 +148,7 @@ class LookupVerifyIn(BaseModel):
 
 
 class LookupVerifyOut(BaseModel):
-    orders:  List[GuestOrderOut]
+    orders:  List[Dict[str, Any]]
     message: str
 
 
@@ -234,7 +234,7 @@ class DeliveryCheckItemIn(BaseModel):
 
 
 class DeliveryCheckIn(BaseModel):
-    pincode: str = Field(..., min_length=6, max_length=6)
+    pincode: str = Field(..., min_length=6, max_length=6, pattern=r"^\d{6}$")
     items: List[DeliveryCheckItemIn] = Field(default_factory=list)
 
 
@@ -248,8 +248,9 @@ class DeliveryCheckOut(BaseModel):
 
 
 class ServiceablePincodeIn(BaseModel):
-    pincode: str = Field(..., min_length=6, max_length=6)
+    pincode: str = Field(..., min_length=6, max_length=6, pattern=r"^\d{6}$")
     city: str = Field(..., min_length=1, max_length=100)
+    state: Optional[str] = Field(default=None, max_length=100)
     zone: str = Field(..., min_length=1, max_length=30)
     is_active: bool = True
     cod_available: bool = True

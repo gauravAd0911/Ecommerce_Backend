@@ -50,11 +50,12 @@ def _require_admin(role: str | None):
 
 
 def _seed_dataset():
-    def generate(city: str, zone: str, start: int, count: int):
+    def generate(city: str, state: str, zone: str, start: int, count: int):
         return [
             {
                 "pincode": str(start + index).zfill(6),
                 "city": city,
+                "state": state,
                 "zone": zone,
                 "eta_days_min": 2 if zone == "metro" else 3 if zone == "tier1" else 4,
                 "eta_days_max": 3 if zone == "metro" else 4 if zone == "tier1" else 6,
@@ -63,13 +64,16 @@ def _seed_dataset():
         ]
 
     return [
-        *generate("Mumbai", "metro", 400001, 10),
-        *generate("Bengaluru", "metro", 560001, 10),
-        *generate("Delhi", "metro", 110001, 10),
-        *generate("Pune", "tier1", 411001, 8),
-        *generate("Ahmedabad", "tier1", 380001, 8),
-        *generate("Kochi", "tier2", 682001, 6),
-        *generate("Indore", "tier2", 452001, 6),
+        *generate("Mumbai", "Maharashtra", "metro", 400001, 10),
+        *generate("Bengaluru", "Karnataka", "metro", 560001, 10),
+        *generate("Delhi", "Delhi", "metro", 110001, 10),
+        *generate("Hyderabad", "Telangana", "metro", 500001, 10),
+        *generate("Chennai", "Tamil Nadu", "metro", 600001, 10),
+        *generate("Kolkata", "West Bengal", "metro", 700001, 10),
+        *generate("Pune", "Maharashtra", "tier1", 411001, 8),
+        *generate("Ahmedabad", "Gujarat", "tier1", 380001, 8),
+        *generate("Kochi", "Kerala", "tier2", 682001, 6),
+        *generate("Indore", "Madhya Pradesh", "tier2", 452001, 6),
     ]
 
 
@@ -82,6 +86,7 @@ def seed_serviceable_pincodes(db: Session):
             ServiceablePincode(
                 pincode=entry["pincode"],
                 city=entry["city"],
+                state=entry["state"],
                 zone=entry["zone"],
                 eta_days_min=entry["eta_days_min"],
                 eta_days_max=entry["eta_days_max"],
@@ -91,12 +96,13 @@ def seed_serviceable_pincodes(db: Session):
 
 
 @router.post("/api/v1/delivery/check", response_model=ApiEnvelope)
+@router.post("/check-delivery-availability", response_model=ApiEnvelope)
 def check_delivery(payload: DeliveryCheckIn, db: DbSession):
     pincode = db.query(ServiceablePincode).filter(ServiceablePincode.pincode == payload.pincode).first()
     if not pincode or not pincode.is_active:
         response = DeliveryCheckOut(
             is_serviceable=False,
-            message="Delivery is not available for this pincode yet. Please choose another address.",
+            message="Delivery is not available for this pincode.",
         )
         return _success("Delivery availability checked.", response.model_dump(mode="json"))
 
@@ -195,3 +201,18 @@ def update_pincode(
         "Serviceable pincode updated successfully.",
         ServiceablePincodeOut.model_validate(record).model_dump(mode="json"),
     )
+
+
+@router.delete("/api/v1/admin/delivery/pincodes/{pincode}", response_model=ApiEnvelope)
+def delete_pincode(
+    pincode: str,
+    db: DbSession,
+    x_role: Annotated[str | None, Header(alias="X-Role")] = None,
+):
+    _require_admin(x_role)
+    record = db.query(ServiceablePincode).filter(ServiceablePincode.pincode == pincode).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="Pincode not found.")
+    db.delete(record)
+    db.commit()
+    return _success("Serviceable pincode deleted successfully.", {"pincode": pincode})

@@ -1,7 +1,7 @@
 """Pydantic response schemas for the Catalog Service API."""
 
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -17,13 +17,13 @@ class _OrmBase(BaseModel):
 
 class CategorySchema(_OrmBase):
     """Lightweight category representation."""
-    id:          int
+    id:          Union[int, str]
     name:        str
     slug:        str
     description: Optional[str] = None
     image_url:   Optional[str] = None
     parent_id:   Optional[int] = None
-    sort_order:  int
+    sort_order:  int = 0
 
 
 class CategoryListResponse(BaseModel):
@@ -47,7 +47,7 @@ class ProductImageSchema(_OrmBase):
 
 class ProductSummarySchema(_OrmBase):
     """Minimal product data for listing cards."""
-    id:                int
+    id:                Union[int, str]
     name:              str
     slug:              str
     short_description: Optional[str]   = None
@@ -60,7 +60,8 @@ class ProductSummarySchema(_OrmBase):
     rating_average:    float
     rating_count:      int
     primary_image_url: Optional[str]   = None
-    category_id:       int
+    category_id:       Union[int, str, None] = None
+    category:          Optional[CategorySchema] = None
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -72,7 +73,7 @@ class ProductSummarySchema(_OrmBase):
 
 class ProductDetailSchema(_OrmBase):
     """Full product data for the product detail page and cart snapshot."""
-    id:                int
+    id:                Union[int, str]
     name:              str
     slug:              str
     short_description: Optional[str]   = None
@@ -88,7 +89,8 @@ class ProductDetailSchema(_OrmBase):
     is_featured:       bool
     rating_average:    float
     rating_count:      int
-    category_id:       int
+    category_id:       Union[int, str, None] = None
+    category:          Optional[CategorySchema] = None
     images:            List[ProductImageSchema] = Field(default_factory=list)
     tags:              List[str]               = Field(default_factory=list)
     created_at:        datetime

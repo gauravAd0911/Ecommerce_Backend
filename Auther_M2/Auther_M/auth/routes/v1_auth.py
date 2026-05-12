@@ -144,6 +144,9 @@ def signup_initiate(payload: SignupInitiateRequest, db: Annotated[Session, Depen
         if "Phone already exists" in message:
             code = "PHONE_ALREADY_EXISTS"
             field_errors.append({"field": "phone", "message": message})
+        if "Password is too long" in message:
+            code = "PASSWORD_TOO_LONG"
+            field_errors.append({"field": "password", "message": message})
         _error(400, code, message, field_errors)
 
     result = create_or_refresh_context(
@@ -377,7 +380,11 @@ def password_reset(payload: PasswordResetRequest, db: Annotated[Session, Depends
     if not user:
         _error(400, "INVALID_RESET_TOKEN", "Invalid or expired reset token")
 
-    user.password_hash = hash_password(payload.new_password)
+    try:
+        user.password_hash = hash_password(payload.new_password)
+    except ValueError as exc:
+        _error(400, "PASSWORD_TOO_LONG", str(exc), [{"field": "new_password", "message": str(exc)}])
+
     db.commit()
 
     return APIResponse(success=True, message="Password reset successful")
@@ -539,7 +546,10 @@ def public_create_employee(
         employee = create_employee_account(db, payload)
     except ValueError as exc:
         message = str(exc)
-        field_name = "email" if "Email" in message else "phone"
+        if "Password is too long" in message:
+            field_name = "password"
+        else:
+            field_name = "email" if "Email" in message else "phone"
         _error(400, "VALIDATION_ERROR", message, [{"field": field_name, "message": message}])
     return APIResponse(
         success=True,
@@ -564,7 +574,10 @@ def public_update_employee(
         employee = update_employee_account(db, employee, payload)
     except ValueError as exc:
         message = str(exc)
-        field_name = "email" if "Email" in message else "phone"
+        if "Password is too long" in message:
+            field_name = "password"
+        else:
+            field_name = "email" if "Email" in message else "phone"
         _error(400, "VALIDATION_ERROR", message, [{"field": field_name, "message": message}])
     return APIResponse(
         success=True,

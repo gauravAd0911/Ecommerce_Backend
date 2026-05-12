@@ -10,7 +10,7 @@ SECRET_KEY = os.getenv("JWT_SECRET")
 if not SECRET_KEY:
     raise RuntimeError("JWT_SECRET must be configured.")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 15
+ACCESS_TOKEN_EXPIRE_MINUTES = 60  # Increased from 15 to 60 minutes for admin operations
 REFRESH_TOKEN_EXPIRE_DAYS = 7
 
 

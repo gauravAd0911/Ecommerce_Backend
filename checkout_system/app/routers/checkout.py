@@ -46,16 +46,9 @@ def _blocking_issues(issues: list[CheckoutIssueOut]) -> list[CheckoutIssueOut]:
     return [issue for issue in issues if issue.code in blocking_codes]
 
 
-def _validate_payload(db: Session, payload: CheckoutValidateIn) -> CheckoutValidateOut:
+def _validate_items(db: Session, payload: CheckoutValidateIn, products: dict) -> tuple[list[CheckoutIssueOut], Decimal, list[CheckoutItemOut]]:
     issues: list[CheckoutIssueOut] = []
     subtotal = Decimal("0")
-
-    product_ids = [item.product_id for item in payload.items]
-    products = {
-        product.id: product
-        for product in db.query(Product).filter(Product.id.in_(product_ids), Product.is_active.is_(True)).all()
-    }
-
     items_out: list[CheckoutItemOut] = []
     for item in payload.items:
         product = products.get(item.product_id)
@@ -97,8 +90,12 @@ def _validate_payload(db: Session, payload: CheckoutValidateIn) -> CheckoutValid
                 unit_price=Decimal(product.price),
             )
         )
+    return issues, subtotal, items_out
 
+
+def _validate_delivery(db: Session, payload: CheckoutValidateIn, subtotal: Decimal) -> tuple[Decimal, list[CheckoutIssueOut]]:
     shipping = Decimal("0") if subtotal >= FREE_SHIPPING_THRESHOLD else DEFAULT_SHIPPING
+    issues: list[CheckoutIssueOut] = []
     if payload.address and payload.address.postal_code:
         delivery_zone = (
             db.query(ServiceablePincode)
@@ -121,6 +118,20 @@ def _validate_payload(db: Session, payload: CheckoutValidateIn) -> CheckoutValid
                 if delivery_zone.shipping_fee_override is not None
                 else (Decimal("0") if subtotal >= FREE_SHIPPING_THRESHOLD else ZONE_SHIPPING.get(delivery_zone.zone, DEFAULT_SHIPPING))
             )
+    return shipping, issues
+
+
+def _validate_payload(db: Session, payload: CheckoutValidateIn) -> CheckoutValidateOut:
+    product_ids = [item.product_id for item in payload.items]
+    products = {
+        product.id: product
+        for product in db.query(Product).filter(Product.id.in_(product_ids), Product.is_active.is_(True)).all()
+    }
+
+    issues, subtotal, items_out = _validate_items(db, payload, products)
+    shipping, delivery_issues = _validate_delivery(db, payload, subtotal)
+    issues.extend(delivery_issues)
+
     pricing = CheckoutPricingOut(
         subtotal=subtotal,
         shipping=shipping,

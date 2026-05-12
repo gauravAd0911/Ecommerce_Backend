@@ -53,6 +53,7 @@ class User(Base):
     """User table."""
 
     __tablename__ = "users"
+    __table_args__ = {"mysql_charset": "utf8mb4"}
 
     id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
 
@@ -71,6 +72,7 @@ class User(Base):
 
     employee_profile = relationship(
         "EmployeeProfile",
+        foreign_keys="EmployeeProfile.user_id",
         back_populates="user",
         uselist=False,
         cascade="all, delete-orphan",
@@ -81,6 +83,7 @@ class EmployeeProfile(Base):
     """Operational profile for employee accounts."""
 
     __tablename__ = "employee_profiles"
+    __table_args__ = {"mysql_charset": "utf8mb4"}
 
     id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(CHAR(36), ForeignKey("users.id"), nullable=False, unique=True, index=True)
@@ -101,6 +104,7 @@ class OtpContext(Base):
     """OTP context for signup and password reset flows."""
 
     __tablename__ = "otp_contexts"
+    __table_args__ = {"mysql_charset": "utf8mb4"}
 
     id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     purpose = Column(SQLEnum(OtpPurpose, values_callable=_enum_values), nullable=False)
@@ -126,6 +130,7 @@ class AuthSession(Base):
     """Refresh-token backed session (supports rotation + logout revocation)."""
 
     __tablename__ = "auth_sessions"
+    __table_args__ = {"mysql_charset": "utf8mb4"}
 
     id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(CHAR(36), ForeignKey("users.id"), nullable=False)
@@ -141,6 +146,7 @@ class PasswordResetToken(Base):
     """Token created after verifying a forgot-password OTP."""
 
     __tablename__ = "password_reset_tokens"
+    __table_args__ = {"mysql_charset": "utf8mb4"}
 
     id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(CHAR(36), ForeignKey("users.id"), nullable=False)

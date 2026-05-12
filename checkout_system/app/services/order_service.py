@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.models.models import Address, GuestCheckoutSession, GuestOrder, OrderStatusHistory
 from app.schemas.schemas import AddressIn, GuestOrderIn
+from app.services.stock_service import deduct_stock_for_guest_order
 
 SHIPPING_RATE       = Decimal("9.99")
 TAX_RATE            = Decimal("0.08")
@@ -76,6 +77,10 @@ def create_order(
     db.add(order)
     db.flush()
     db.add(OrderStatusHistory(order_id=order.id, new_status="pending", note="Guest order placed."))
+    
+    # MVP: Deduct stock for each item after order creation
+    deduct_stock_for_guest_order(db, items)
+    
     db.commit()
     db.refresh(order)
     return order

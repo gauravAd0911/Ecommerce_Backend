@@ -1,5 +1,10 @@
 """Application settings loaded from environment variables."""
 
+import json
+from typing import Any, List
+from urllib.parse import quote_plus
+
+from pydantic import validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -30,6 +35,24 @@ class Settings(BaseSettings):
     default_page_size: int = 20
     max_page_size: int = 100
 
+    # ------------------------------------------------------------------ #
+    # CORS
+    # ------------------------------------------------------------------ #
+    allowed_origins: List[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
+
+    @validator("allowed_origins", pre=True)
+    def parse_allowed_origins(cls, v: Any) -> List[str]:
+        if isinstance(v, list):
+            return v
+        if isinstance(v, str):
+            try:
+                parsed = json.loads(v)
+                if isinstance(parsed, list):
+                    return [str(origin) for origin in parsed if origin]
+            except ValueError:
+                return [origin.strip() for origin in v.split(",") if origin.strip()]
+        return ["http://localhost:5173", "http://127.0.0.1:5173"]
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
@@ -40,7 +63,7 @@ class Settings(BaseSettings):
     def database_url(self) -> str:
         """Async MySQL connection URL."""
         return (
-            f"mysql+aiomysql://{self.db_user}:{self.db_password}"
+            f"mysql+aiomysql://{quote_plus(self.db_user)}:{quote_plus(self.db_password)}"
             f"@{self.db_host}:{self.db_port}/{self.db_name}"
         )
 

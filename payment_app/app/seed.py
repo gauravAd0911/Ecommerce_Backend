@@ -1,5 +1,11 @@
 """Seed demo cart data for local testing.
 
+⚠️ DEPRECATED: This script is for development/testing purposes only.
+It seeds hardcoded cart items with mock user_id=1.
+
+This script is NOT called during application startup.
+Do NOT use this in production environments.
+
 This script supports both cart schemas:
 - `carts.price`
 - legacy `carts.unit_price`

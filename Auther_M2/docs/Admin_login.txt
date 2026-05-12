@@ -1,0 +1,3 @@
+Created admin user successfully:
+  email: admin@lumira.local
+  password: Admin@123

@@ -8,7 +8,7 @@ FastAPI microservice for managing the authenticated user's profile and saved add
 - MySQL (via `pymysql`)
 
 ## Prerequisites
-- Python 3.10+ (recommended)
+- Python 3.10+ including Python 3.13
 - MySQL running locally
 
 ## Setup
@@ -39,11 +39,11 @@ Note: `setup_all.bat` currently references `sql\user_profile_service.sql`, but t
 ## Run
 ```powershell
 .\venv\Scripts\Activate.ps1
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload --port 8009
 ```
 
-- API: `http://127.0.0.1:8000`
-- Swagger UI: `http://127.0.0.1:8000/docs`
+- API: `http://127.0.0.1:8009`
+- Swagger UI: `http://127.0.0.1:8009/docs`
 
 ## Endpoints
 - `GET /api/v1/users/me`

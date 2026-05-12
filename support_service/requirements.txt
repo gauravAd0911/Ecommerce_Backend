@@ -4,6 +4,7 @@ sqlalchemy
 pymysql
 python-dotenv
 pydantic
+PyJWT
 email-validator
 pydantic[email]
 pydantic-settings

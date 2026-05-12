@@ -76,8 +76,8 @@ headers:{
 "Content-Type":"application/json"
 },
 body:JSON.stringify({
-email:email,
-password:password
+identifier: email,
+password: password
 })
 })
 

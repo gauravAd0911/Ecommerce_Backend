@@ -1,14 +1,10 @@
-fastapi==0.111.0
-uvicorn[standard]==0.30.0
-
-SQLAlchemy==2.0.30
-pymysql==1.1.0
-
-pydantic==2.7.1
-python-dotenv==1.0.1
-
-alembic==1.13.1
-
-# Optional but recommended
-loguru==0.7.2
-pydantic-settings==2.2.1
+fastapi
+uvicorn
+sqlalchemy
+pymysql
+pydantic==2.13.4
+pydantic-core==2.46.4
+python-dotenv
+alembic
+loguru
+pydantic-settings

@@ -10,9 +10,9 @@ echo.
 :: ── Config ───────────────────────────────────────────────────
 SET VENV=venv
 SET HOST=127.0.0.1
-SET PORT=8000
+SET PORT=8004
 IF "%MYSQL_ROOT_USER%"==""     SET MYSQL_ROOT_USER=root
-IF "%MYSQL_ROOT_PASSWORD%"=="" SET MYSQL_ROOT_PASSWORD=Root
+IF "%MYSQL_ROOT_PASSWORD%"=="" SET MYSQL_ROOT_PASSWORD=Gaurav@123
 
 :: ── 1. Python ─────────────────────────────────────────────────
 echo [1/6] Checking Python...

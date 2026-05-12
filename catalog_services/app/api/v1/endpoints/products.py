@@ -57,7 +57,7 @@ async def get_filter_options(
     description="Returns full product data including images, ingredients, benefits, and stock.",
 )
 async def get_product(
-    product_id: int,
+    product_id: str,
     service: Annotated[CatalogService, Depends(get_catalog_service)],
 ) -> ProductDetailSchema:
     """Return detail for a single active product."""
@@ -73,7 +73,7 @@ async def get_product(
     description="Returns products from the same category, ordered by rating.",
 )
 async def get_related_products(
-    product_id: int,
+    product_id: str,
     service: Annotated[CatalogService, Depends(get_catalog_service)],
     limit: Annotated[int, Query(ge=1, le=20)] = 6,
 ) -> ProductListResponse:

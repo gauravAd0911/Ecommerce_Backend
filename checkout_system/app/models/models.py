@@ -1,7 +1,7 @@
 import uuid
 import enum
 from datetime import datetime
-from sqlalchemy import Column, String, Boolean, Integer, Numeric, Text, DateTime, ForeignKey, SmallInteger, JSON, Enum as SAEnum
+from sqlalchemy import Column, CHAR, String, Boolean, Integer, Numeric, Text, DateTime, ForeignKey, SmallInteger, JSON, Enum as SAEnum
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -32,7 +32,7 @@ class OtpStatus(str, enum.Enum):
 class Category(Base):
     __tablename__ = "categories"
 
-    id          = Column(String(36), primary_key=True, default=_uuid)
+    id          = Column(CHAR(36), primary_key=True, default=_uuid)
     name        = Column(String(100), nullable=False, unique=True)
     slug        = Column(String(120), nullable=False, unique=True)
     description = Column(Text)
@@ -46,8 +46,8 @@ class Category(Base):
 class Product(Base):
     __tablename__ = "products"
 
-    id            = Column(String(36), primary_key=True, default=_uuid)
-    category_id   = Column(String(36), ForeignKey("categories.id", ondelete="SET NULL"), nullable=True)
+    id            = Column(CHAR(36), primary_key=True, default=_uuid)
+    category_id   = Column(CHAR(36), ForeignKey("categories.id", ondelete="SET NULL"), nullable=True)
     name          = Column(String(255), nullable=False)
     slug          = Column(String(280), nullable=False, unique=True)
     description   = Column(Text)
@@ -68,7 +68,7 @@ class GuestCheckoutSession(Base):
     """One session per guest attempt. Holds dual-channel verification state."""
     __tablename__ = "guest_checkout_sessions"
 
-    id                = Column(String(36), primary_key=True, default=_uuid)
+    id                = Column(CHAR(36), primary_key=True, default=_uuid)
     guest_name        = Column(String(200))
     email             = Column(String(320), nullable=False)
     phone             = Column(String(30),  nullable=False)
@@ -90,8 +90,8 @@ class GuestOtp(Base):
     """One row per OTP send per channel per session."""
     __tablename__ = "guest_otps"
 
-    id             = Column(String(36), primary_key=True, default=_uuid)
-    session_id     = Column(String(36), ForeignKey("guest_checkout_sessions.id", ondelete="CASCADE"), nullable=False)
+    id             = Column(CHAR(36), primary_key=True, default=_uuid)
+    session_id     = Column(CHAR(36), ForeignKey("guest_checkout_sessions.id", ondelete="CASCADE"), nullable=False)
     channel        = Column(SAEnum(OtpChannel), nullable=False)
     purpose        = Column(SAEnum(OtpPurpose), nullable=False)
     code_hash      = Column(String(64), nullable=False)
@@ -111,7 +111,7 @@ class GuestOtp(Base):
 class Address(Base):
     __tablename__ = "addresses"
 
-    id          = Column(String(36), primary_key=True, default=_uuid)
+    id          = Column(CHAR(36), primary_key=True, default=_uuid)
     full_name   = Column(String(200), nullable=False)
     line1       = Column(String(255), nullable=False)
     line2       = Column(String(255))
@@ -127,16 +127,16 @@ class Address(Base):
 class GuestOrder(Base):
     __tablename__ = "guest_orders"
 
-    id                  = Column(String(36), primary_key=True, default=_uuid)
-    session_id          = Column(String(36), ForeignKey("guest_checkout_sessions.id", ondelete="SET NULL"), nullable=True)
+    id                  = Column(CHAR(36), primary_key=True, default=_uuid)
+    session_id          = Column(CHAR(36), ForeignKey("guest_checkout_sessions.id", ondelete="SET NULL"), nullable=True)
     order_number        = Column(String(20),  nullable=False, unique=True)
     guest_name          = Column(String(200), nullable=False)
     guest_email         = Column(String(320), nullable=False)
     guest_phone         = Column(String(30))
     email_verified      = Column(Boolean, nullable=False, default=False)
     sms_verified   = Column(Boolean, nullable=False, default=False)
-    shipping_address_id = Column(String(36), ForeignKey("addresses.id"))
-    billing_address_id  = Column(String(36), ForeignKey("addresses.id"))
+    shipping_address_id = Column(CHAR(36), ForeignKey("addresses.id"))
+    billing_address_id  = Column(CHAR(36), ForeignKey("addresses.id"))
     items               = Column(JSON, nullable=False, default=list)
     subtotal            = Column(Numeric(12, 2), nullable=False)
     shipping_amount     = Column(Numeric(12, 2), nullable=False, default=0)
@@ -163,7 +163,7 @@ class CheckoutSession(Base):
 
     __tablename__ = "checkout_sessions"
 
-    id = Column(String(36), primary_key=True, default=_uuid)
+    id = Column(CHAR(36), primary_key=True, default=_uuid)
     user_id = Column(String(100))
     guest_token = Column(String(512))
     address_id = Column(String(100))
@@ -179,8 +179,8 @@ class CheckoutSession(Base):
 class CheckoutOrder(Base):
     __tablename__ = "checkout_orders"
 
-    id = Column(String(36), primary_key=True, default=_uuid)
-    checkout_session_id = Column(String(36), ForeignKey("checkout_sessions.id", ondelete="SET NULL"), nullable=True)
+    id = Column(CHAR(36), primary_key=True, default=_uuid)
+    checkout_session_id = Column(CHAR(36), ForeignKey("checkout_sessions.id", ondelete="SET NULL"), nullable=True)
     user_id = Column(String(100))
     guest_token = Column(String(512))
     address_id = Column(String(100))
@@ -202,9 +202,9 @@ class CheckoutOrder(Base):
 class InventoryReservation(Base):
     __tablename__ = "inventory_reservations"
 
-    id = Column(String(36), primary_key=True, default=_uuid)
-    reservation_group_id = Column(String(36), index=True, nullable=False)
-    product_id = Column(String(36), ForeignKey("products.id", ondelete="CASCADE"), nullable=False)
+    id = Column(CHAR(36), primary_key=True, default=_uuid)
+    reservation_group_id = Column(CHAR(36), index=True, nullable=False)
+    product_id = Column(CHAR(36), ForeignKey("products.id", ondelete="CASCADE"), nullable=False)
     quantity = Column(Integer, nullable=False)
     status = Column(String(30), nullable=False, default="active")
     expires_at = Column(DateTime, nullable=False)
@@ -215,9 +215,10 @@ class InventoryReservation(Base):
 class ServiceablePincode(Base):
     __tablename__ = "serviceable_pincodes"
 
-    id = Column(String(36), primary_key=True, default=_uuid)
+    id = Column(CHAR(36), primary_key=True, default=_uuid)
     pincode = Column(String(6), unique=True, index=True, nullable=False)
     city = Column(String(100), nullable=False)
+    state = Column(String(100), nullable=True)
     zone = Column(String(30), nullable=False, default="tier2")
     is_active = Column(Boolean, nullable=False, default=True)
     cod_available = Column(Boolean, nullable=False, default=True)
@@ -235,8 +236,8 @@ class ServiceablePincode(Base):
 class OrderStatusHistory(Base):
     __tablename__ = "order_status_history"
 
-    id         = Column(String(36), primary_key=True, default=_uuid)
-    order_id   = Column(String(36), ForeignKey("guest_orders.id", ondelete="CASCADE"), nullable=False)
+    id         = Column(CHAR(36), primary_key=True, default=_uuid)
+    order_id   = Column(CHAR(36), ForeignKey("guest_orders.id", ondelete="CASCADE"), nullable=False)
     old_status = Column(String(30))
     new_status = Column(String(30), nullable=False)
     note       = Column(Text)

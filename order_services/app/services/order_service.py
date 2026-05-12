@@ -4,6 +4,8 @@ from app.repositories.order_repo import OrderRepository
 from app.repositories.tracking_repo import TrackingRepository
 from app.core.constants import OrderStatus
 from app.services.notification_service import NotificationService
+from app.services.stock_service import deduct_stock_for_order
+from app.core.config import settings
 import uuid
 
 
@@ -20,7 +22,7 @@ class OrderService:
 
     def finalize_order(self, *, data: Dict[str, Any], user_id: str) -> Dict[str, Any]:
         """
-        Finalize order after validation.
+        Finalize order after validation and payment.
 
         Args:
             data (dict): Order payload
@@ -39,6 +41,9 @@ class OrderService:
                 user_id=user_id,
                 order_number=order_number,
                 guest_token=data.get("guest_token"),
+                guest_email=data.get("guest_email"),
+                guest_phone=data.get("guest_phone"),
+                payment_reference=data.get("payment_reference"),
                 total=data["total"],
                 payment_method=data["payment_method"],
                 shipping_address=data["shipping_address"],
@@ -54,6 +59,11 @@ class OrderService:
                 OrderStatus.PLACED,
                 "Order placed successfully"
             )
+            
+            # MVP: Deduct stock after order creation
+            if settings.DEDUCT_STOCK_ON_ORDER:
+                deduct_stock_for_order(self.db, order.id, data.get("items", []))
+            
             self.db.commit()
         except Exception:
             self.db.rollback()

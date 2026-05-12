@@ -115,7 +115,10 @@ def get_employee_by_id(db: Session, employee_id: str) -> User | None:
 def list_employees(db: Session) -> list[User]:
     return (
         db.query(User)
+        .join(EmployeeProfile, EmployeeProfile.user_id == User.id)
         .filter(User.role == Role.VENDOR)
+        .filter(User.is_active.is_(True))
+        .filter(EmployeeProfile.is_active.is_(True))
         .order_by(User.created_at.desc())
         .all()
     )
@@ -145,7 +148,7 @@ def create_employee_account(db: Session, payload: EmployeeCreateRequest) -> User
     profile = EmployeeProfile(
         user_id=user.id,
         employee_code=build_employee_code(db),
-        designation=payload.designation,
+        designation=payload.designation or "employee",
         department=payload.department,
         manager_id=payload.manager_id,
         work_location=payload.work_location,
@@ -184,9 +187,10 @@ def update_employee_account(db: Session, employee: User, payload: EmployeeUpdate
     )
     if employee.employee_profile is None:
         db.add(profile)
+        profile.designation = "employee"
 
     if payload.designation is not None:
-        profile.designation = payload.designation
+        profile.designation = payload.designation or "employee"
     if payload.department is not None:
         profile.department = payload.department
     if payload.manager_id is not None:

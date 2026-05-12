@@ -7,7 +7,7 @@ load_dotenv()
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "mysql+pymysql://root:Root@127.0.0.1:3306/abt_dev"
+    "mysql+pymysql://root:Gaurav%40123@127.0.0.1:3306/abt_dev"
 )
 
 engine = create_engine(

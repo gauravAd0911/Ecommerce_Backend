@@ -1,3 +1,4 @@
+import json
 import os
 from dotenv import load_dotenv
 
@@ -28,6 +29,9 @@ class Settings:
         # =========================
         self.DEBUG: bool = os.getenv("DEBUG", "True") == "True"
         self.APP_NAME: str = os.getenv("APP_NAME", "User Profile Service")
+        self.ALLOWED_ORIGINS: list[str] = self._parse_allowed_origins(
+            os.getenv("ALLOWED_ORIGINS", "")
+        )
 
         # =========================
         # BUSINESS LOGIC
@@ -35,6 +39,19 @@ class Settings:
         self.MAX_ADDRESS_LIMIT: int = int(
             os.getenv("MAX_ADDRESS_LIMIT", 5)
         )
+
+    def _parse_allowed_origins(self, raw_value: str) -> list[str]:
+        if not raw_value:
+            return ["http://localhost:5173", "http://127.0.0.1:5173"]
+
+        try:
+            parsed_value = json.loads(raw_value)
+            if isinstance(parsed_value, list):
+                return [str(origin).strip() for origin in parsed_value if str(origin).strip()]
+        except json.JSONDecodeError:
+            pass
+
+        return [origin.strip() for origin in raw_value.split(",") if origin.strip()]
 
 
 # Singleton instance

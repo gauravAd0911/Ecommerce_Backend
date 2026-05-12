@@ -32,11 +32,20 @@ class OrderRepository:
     def get_orders_for_user(self, user_id):
         return self.db.query(Order).filter(Order.user_id == user_id).all()
 
+    def get_guest_orders_by_email(self, email, order_number=None, limit=20):
+        query = self.db.query(Order).filter(Order.guest_email == str(email or "").lower().strip())
+        if order_number:
+            query = query.filter(Order.order_number == str(order_number).strip())
+        return query.order_by(Order.created_at.desc()).limit(limit).all()
+
     def get_order(self, order_id):
         return self.db.query(Order).filter(Order.id == order_id).first()
 
     def get_order_by_number(self, order_number):
         return self.db.query(Order).filter(Order.order_number == order_number).first()
+
+    def get_order_by_payment_reference(self, payment_reference):
+        return self.db.query(Order).filter(Order.payment_reference == payment_reference).first()
 
     def get_order_for_user(self, order_id, user_id):
         query = self.db.query(Order).filter(Order.user_id == user_id)

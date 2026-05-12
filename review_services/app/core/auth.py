@@ -1,14 +1,16 @@
 """Authentication utilities and FastAPI dependency for current user."""
 
+import logging
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import JWTError, jwt
+from jose import ExpiredSignatureError, JWTError, jwt
 
 from app.core.config import settings
 
 _bearer_scheme = HTTPBearer()
+logger = logging.getLogger(__name__)
 
 
 def _decode_token(token: str) -> dict:
@@ -29,7 +31,15 @@ def _decode_token(token: str) -> dict:
             settings.jwt_secret,
             algorithms=[settings.jwt_algorithm],
         )
+    except ExpiredSignatureError as exc:
+        logger.info("Rejected expired JWT access token.")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token.",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from exc
     except JWTError as exc:
+        logger.warning("Rejected invalid JWT access token: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token.",

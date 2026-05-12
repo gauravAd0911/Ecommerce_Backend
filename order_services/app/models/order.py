@@ -1,4 +1,5 @@
 from sqlalchemy import Column, DateTime, Integer, String, Float, Text
+from sqlalchemy.dialects.mysql import BIGINT
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.sql import func
 
@@ -8,10 +9,13 @@ Base = declarative_base()
 class Order(Base):
     __tablename__ = "orders"
 
-    id = Column(Integer, primary_key=True)
+    id = Column(BIGINT(unsigned=True), primary_key=True)
     order_number = Column(String(50), unique=True, nullable=False)
-    user_id = Column(String(100), nullable=False)
+    user_id = Column(String(128), nullable=False, index=True)
     guest_token = Column(String(255), nullable=True, index=True)
+    guest_email = Column(String(255), nullable=True, index=True)
+    guest_phone = Column(String(30), nullable=True)
+    payment_reference = Column(String(120), nullable=True, unique=True, index=True)
     total = Column(Float, nullable=False)
     status = Column(String(50), nullable=False)
     payment_method = Column(String(50), nullable=False)

@@ -45,6 +45,14 @@ class ReviewService:
     ) -> PaginatedReviews:
         return await self._repo.list_for_product(product_id, page, page_size)
 
+    async def list_public(
+        self,
+        page: int,
+        page_size: int,
+        product_id: str | None = None,
+    ) -> PaginatedReviews:
+        return await self._repo.list_public(page=page, page_size=page_size, product_id=product_id)
+
     async def get_rating_summary(self, product_id: str) -> RatingSummaryDTO:
         summary = await self._repo.get_rating_summary(product_id)
         if summary is None:

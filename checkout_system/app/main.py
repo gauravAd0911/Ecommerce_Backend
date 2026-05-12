@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import text
 
 from app.core.config import get_settings
 from app.core.database import Base, engine
@@ -34,7 +35,8 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cfg.origins,
+    allow_origins=cfg.allowed_origins,
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1)(:\d+)?",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -98,6 +100,20 @@ def startup() -> None:
 
     db = SessionLocal()
     try:
+        result = db.execute(
+            text(
+                """
+                SELECT COUNT(*)
+                FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME = 'serviceable_pincodes'
+                  AND COLUMN_NAME = 'state'
+                """
+            )
+        )
+        if int(result.scalar() or 0) == 0:
+            db.execute(text("ALTER TABLE serviceable_pincodes ADD COLUMN state VARCHAR(100) NULL"))
+            db.commit()
         seed_serviceable_pincodes(db)
     finally:
         db.close()

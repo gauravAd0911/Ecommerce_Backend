@@ -42,3 +42,9 @@ temp/
 # Android/native build artifacts if copied into backend workspace
 .cxx/
 .gradle/
+
+# Documentation (except README files)
+docs/**
+!docs/
+!docs/**/README.md
+!docs/README.md

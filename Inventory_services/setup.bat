@@ -35,7 +35,8 @@ call venv\Scripts\activate || goto :error
 
 :: Step 5 - Install deps
 echo [INFO] Installing dependencies...
-pip install -r requirements.txt || goto :error
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt || goto :error
 
 :: Step 6 - Check MySQL
 where mysql >nul 2>nul
@@ -86,7 +87,7 @@ alembic upgrade head || goto :error
 
 :: Defaults
 IF "%HOST%"=="" SET HOST=127.0.0.1
-IF "%PORT%"=="" SET PORT=8000
+SET PORT=8005
 
 echo [INFO] Starting server...
 set PYTHONPATH=.

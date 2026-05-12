@@ -37,7 +37,7 @@ if not exist "%PROJECT_ROOT%\requirements.txt" (
 )
 
 echo [2/6] Installing requirements...
-"%VENV_PYTHON%" -m pip install --upgrade pip
+"%VENV_PYTHON%" -m pip install --upgrade pip "setuptools==81.0.0"
 if errorlevel 1 exit /b 1
 "%VENV_PIP%" install -r "%PROJECT_ROOT%\requirements.txt"
 if errorlevel 1 exit /b 1
@@ -55,7 +55,7 @@ if exist "%PROJECT_ROOT%\.env" (
     echo MYSQL_HOST=127.0.0.1
     echo MYSQL_PORT=3306
     echo MYSQL_USER=root
-    echo MYSQL_PASSWORD=Root
+    echo MYSQL_PASSWORD=Gaurav@123
     echo MYSQL_DB=abt_dev
     echo.
     echo RAZORPAY_KEY=replace_me
@@ -107,8 +107,8 @@ if exist "%PROJECT_ROOT%\app\seed.py" (
 )
 
 rem [6/6] Run server
-echo [6/6] Starting server at http://127.0.0.1:8000 ...
-"%VENV_PYTHON%" -m uvicorn app.main:app --reload --app-dir "%PROJECT_ROOT%"
+echo [6/6] Starting server at http://127.0.0.1:8006 ...
+"%VENV_PYTHON%" -m uvicorn app.main:app --reload --app-dir "%PROJECT_ROOT%" --port 8006
 exit /b %errorlevel%
 
 :create_venv

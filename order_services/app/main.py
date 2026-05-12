@@ -1,10 +1,25 @@
 # app/main.py
+import json
+import os
+
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.order_routes import router as order_router
 from app.core.database import init_db
+
+
+def _parse_allowed_origins() -> list[str]:
+    raw = os.getenv("ALLOWED_ORIGINS", "[\"http://localhost:5173\", \"http://127.0.0.1:5173\"]")
+    try:
+        parsed = json.loads(raw)
+        if isinstance(parsed, list):
+            return [str(origin) for origin in parsed if origin]
+    except ValueError:
+        return [origin.strip() for origin in raw.split(",") if origin.strip()]
+    return []
 
 
 def create_application() -> FastAPI:
@@ -12,6 +27,14 @@ def create_application() -> FastAPI:
         title="Order Service API",
         version="1.0.0",
         description="Handles order processing, tracking, and history",
+    )
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_parse_allowed_origins(),
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
     def _error_payload(*, code: str, message: str, details=None):
@@ -60,6 +83,10 @@ def create_application() -> FastAPI:
         init_db()
 
     app.include_router(order_router)
+
+    @app.get("/")
+    def root() -> dict[str, str]:
+        return {"message": "Order Service is running"}
 
     @app.get("/health", tags=["Health"])
     def health_check() -> dict:

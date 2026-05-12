@@ -34,7 +34,7 @@ if not exist .env (
     (
     echo DB_HOST=localhost
     echo DB_USER=root
-    echo DB_PASSWORD=replace_me
+    echo DB_PASSWORD=Gaurav@123
     echo DB_NAME=abt_dev
     echo.
     echo TWILIO_ACCOUNT_SID=your_sid_here
@@ -52,7 +52,7 @@ REM 5. Create Database
 REM -------------------------------
 echo Creating MySQL database...
 
-mysql -u root -pRoot -e "CREATE DATABASE IF NOT EXISTS abt_dev;"
+mysql -u root -pGaurav@123 -e "CREATE DATABASE IF NOT EXISTS abt_dev;"
 
 IF %ERRORLEVEL% NEQ 0 (
     echo MySQL connection failed. Check username/password.
@@ -65,9 +65,9 @@ echo Database ready
 REM -------------------------------
 REM 6. Run FastAPI Server
 REM -------------------------------
-echo Starting FastAPI server...
+echo Starting FastAPI server on port 8011...
 echo Tables will be created automatically on startup if they do not exist.
 
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload --port 8011
 
 pause

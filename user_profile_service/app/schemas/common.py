@@ -1,5 +1,8 @@
+from typing import Any, Dict, Generic, Optional, TypeVar
+
 from pydantic import BaseModel
-from typing import Any, Optional, Dict
+
+T = TypeVar("T")
 
 
 class ErrorDetail(BaseModel):
@@ -8,8 +11,9 @@ class ErrorDetail(BaseModel):
     details: Optional[Dict[str, Any]] = None
 
 
-class APIResponse(BaseModel):
+class APIResponse(BaseModel, Generic[T]):
     success: bool
     message: str
-    data: Optional[Any] = None
+    data: Optional[T] = None
+    errors: Optional[Dict[str, Any]] = None
     error: Optional[ErrorDetail] = None

@@ -23,7 +23,7 @@ def _env(name: str, default: str) -> str:
 MYSQL_HOST = _env("MYSQL_HOST", "127.0.0.1")
 MYSQL_PORT = int(_env("MYSQL_PORT", "3306"))
 MYSQL_USER = _env("MYSQL_USER", "root")
-MYSQL_PASSWORD = _env("MYSQL_PASSWORD", "Root")
+MYSQL_PASSWORD = _env("MYSQL_PASSWORD", "Gaurav@123")
 MYSQL_DB = _env("MYSQL_DB", "abt_dev")
 
 DATABASE_URL = (

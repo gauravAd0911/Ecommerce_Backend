@@ -1,7 +1,9 @@
 ﻿from __future__ import annotations
 
-from fastapi import Depends, HTTPException
-from fastapi.security import HTTPBearer
+from typing import Annotated
+
+from fastapi import Cookie, Depends, HTTPException
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
 from database import get_db
@@ -11,13 +13,27 @@ from auth.utils.jwt import verify_token
 security = HTTPBearer(auto_error=False)
 
 
-def get_current_user(credentials=Depends(security), db: Session = Depends(get_db)) -> User:
-    """Resolve the current user from the Authorization JWT token."""
+def _extract_token(
+    credentials: HTTPAuthorizationCredentials | None,
+    access_token: str | None,
+) -> str | None:
+    if credentials and credentials.credentials:
+        return credentials.credentials
+    return access_token
 
-    if not credentials or not credentials.credentials:
+
+def get_current_user(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security)] = None,
+    access_token: Annotated[str | None, Cookie(alias="access_token")] = None,
+    db: Session = Depends(get_db),
+) -> User:
+    """Resolve the current user from the Authorization JWT token or access_token cookie."""
+
+    token = _extract_token(credentials, access_token)
+    if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
-    payload = verify_token(credentials.credentials)
+    payload = verify_token(token)
     if not payload:
         raise HTTPException(status_code=401, detail="Invalid token")
 

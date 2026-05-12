@@ -51,6 +51,22 @@ class ReviewRepository:
     async def get_by_id(self, review_id: str) -> Review | None:
         return await self._session.get(Review, review_id)
  
+    async def list_public(
+        self,
+        page: int,
+        page_size: int,
+        product_id: str | None = None,
+    ) -> PaginatedReviews:
+        filters = [Review.status == REVIEW_STATUS_PUBLISHED]
+        if product_id:
+            filters.append(Review.product_id == product_id)
+        total = await self._session.scalar(select(func.count()).select_from(Review).where(*filters)) or 0
+        rows = await self._session.execute(
+            select(Review).where(*filters).order_by(Review.created_at.desc())
+            .offset((page - 1) * page_size).limit(page_size)
+        )
+        return PaginatedReviews(items=list(rows.scalars().all()), total=total, page=page, page_size=page_size)
+
     async def list_for_product(self, product_id: str, page: int, page_size: int) -> PaginatedReviews:
         f = (Review.product_id == product_id, Review.status == REVIEW_STATUS_PUBLISHED)
         total = await self._session.scalar(select(func.count()).select_from(Review).where(*f)) or 0

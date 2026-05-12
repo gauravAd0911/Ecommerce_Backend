@@ -27,12 +27,12 @@ SET FOREIGN_KEY_CHECKS = 1;
 -- Table: categories
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS categories (
-    id          INT UNSIGNED    NOT NULL AUTO_INCREMENT,
+    id          INT             NOT NULL AUTO_INCREMENT,
     name        VARCHAR(120)    NOT NULL,
     slug        VARCHAR(120)    NOT NULL,
     description TEXT                     DEFAULT NULL,
     image_url   VARCHAR(500)             DEFAULT NULL,
-    parent_id   INT UNSIGNED             DEFAULT NULL,
+    parent_id   INT                      DEFAULT NULL,
     is_active   TINYINT(1)      NOT NULL DEFAULT 1,
     sort_order  SMALLINT        NOT NULL DEFAULT 0,
     created_at  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -52,8 +52,8 @@ CREATE TABLE IF NOT EXISTS categories (
 -- Table: products
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS products (
-    id                  INT UNSIGNED    NOT NULL AUTO_INCREMENT,
-    category_id         INT UNSIGNED    NOT NULL,
+    id                  INT             NOT NULL AUTO_INCREMENT,
+    category_id         INT             NOT NULL,
     name                VARCHAR(255)    NOT NULL,
     slug                VARCHAR(255)    NOT NULL,
     short_description   VARCHAR(500)             DEFAULT NULL,
@@ -94,8 +94,8 @@ CREATE TABLE IF NOT EXISTS products (
 -- Table: product_images
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS product_images (
-    id          INT UNSIGNED    NOT NULL AUTO_INCREMENT,
-    product_id  INT UNSIGNED    NOT NULL,
+    id          INT             NOT NULL AUTO_INCREMENT,
+    product_id  INT             NOT NULL,
     url         VARCHAR(500)    NOT NULL,
     alt_text    VARCHAR(255)             DEFAULT NULL,
     is_primary  TINYINT(1)      NOT NULL DEFAULT 0,
@@ -113,8 +113,8 @@ CREATE TABLE IF NOT EXISTS product_images (
 -- Table: product_tags
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS product_tags (
-    id          INT UNSIGNED    NOT NULL AUTO_INCREMENT,
-    product_id  INT UNSIGNED    NOT NULL,
+    id          INT             NOT NULL AUTO_INCREMENT,
+    product_id  INT             NOT NULL,
     tag         VARCHAR(80)     NOT NULL,
 
     PRIMARY KEY (id),
@@ -130,7 +130,7 @@ CREATE TABLE IF NOT EXISTS product_tags (
 -- Table: home_banners
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS home_banners (
-    id          INT UNSIGNED    NOT NULL AUTO_INCREMENT,
+    id          INT             NOT NULL AUTO_INCREMENT,
     title       VARCHAR(255)    NOT NULL,
     subtitle    VARCHAR(500)             DEFAULT NULL,
     image_url   VARCHAR(500)    NOT NULL,
@@ -151,17 +151,49 @@ CREATE TABLE IF NOT EXISTS home_banners (
 -- SECTION 2: INDEXES
 -- =============================================================================
 
-CREATE INDEX IF NOT EXISTS idx_categories_is_active         ON categories    (is_active);
-CREATE INDEX IF NOT EXISTS idx_categories_parent_id         ON categories    (parent_id);
+-- Note: Using conditional SQL to create indexes only if they don't exist (MySQL 5.7+ compatible)
 
-CREATE INDEX IF NOT EXISTS idx_products_category_id         ON products      (category_id);
-CREATE INDEX IF NOT EXISTS idx_products_is_active           ON products      (is_active);
-CREATE INDEX IF NOT EXISTS idx_products_is_featured         ON products      (is_featured);
-CREATE INDEX IF NOT EXISTS idx_products_skin_type           ON products      (skin_type);
-CREATE INDEX IF NOT EXISTS idx_products_price               ON products      (price);
-CREATE INDEX IF NOT EXISTS idx_products_active_featured     ON products      (is_active, is_featured, rating_average);
-CREATE INDEX IF NOT EXISTS idx_products_active_rating       ON products      (is_active, rating_average);
-CREATE INDEX IF NOT EXISTS idx_products_active_created      ON products      (is_active, created_at);
+-- Categories indexes
+SET @idx_exist := (SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='categories' AND INDEX_NAME='idx_categories_is_active');
+SET @sql := IF(@idx_exist=0, 'CREATE INDEX idx_categories_is_active ON categories (is_active)', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @idx_exist := (SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='categories' AND INDEX_NAME='idx_categories_parent_id');
+SET @sql := IF(@idx_exist=0, 'CREATE INDEX idx_categories_parent_id ON categories (parent_id)', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- Products indexes
+SET @idx_exist := (SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='products' AND INDEX_NAME='idx_products_category_id');
+SET @sql := IF(@idx_exist=0, 'CREATE INDEX idx_products_category_id ON products (category_id)', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @idx_exist := (SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='products' AND INDEX_NAME='idx_products_is_active');
+SET @sql := IF(@idx_exist=0, 'CREATE INDEX idx_products_is_active ON products (is_active)', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @idx_exist := (SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='products' AND INDEX_NAME='idx_products_is_featured');
+SET @sql := IF(@idx_exist=0, 'CREATE INDEX idx_products_is_featured ON products (is_featured)', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @idx_exist := (SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='products' AND INDEX_NAME='idx_products_skin_type');
+SET @sql := IF(@idx_exist=0, 'CREATE INDEX idx_products_skin_type ON products (skin_type)', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @idx_exist := (SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='products' AND INDEX_NAME='idx_products_price');
+SET @sql := IF(@idx_exist=0, 'CREATE INDEX idx_products_price ON products (price)', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @idx_exist := (SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='products' AND INDEX_NAME='idx_products_active_featured');
+SET @sql := IF(@idx_exist=0, 'CREATE INDEX idx_products_active_featured ON products (is_active, is_featured, rating_average)', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @idx_exist := (SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='products' AND INDEX_NAME='idx_products_active_rating');
+SET @sql := IF(@idx_exist=0, 'CREATE INDEX idx_products_active_rating ON products (is_active, rating_average)', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @idx_exist := (SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='products' AND INDEX_NAME='idx_products_active_created');
+SET @sql := IF(@idx_exist=0, 'CREATE INDEX idx_products_active_created ON products (is_active, created_at)', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- FULLTEXT replaces PostgreSQL pg_trgm for keyword search
 -- Add FULLTEXT index only if it doesn't already exist

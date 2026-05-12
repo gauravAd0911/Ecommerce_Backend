@@ -6,6 +6,12 @@ POST /api/v1/guest-orders/request-lookup  — send email OTP for lookup
 POST /api/v1/guest-orders/verify-lookup   — verify OTP → return orders
 """
 
+import json
+import os
+from urllib.error import HTTPError, URLError
+from urllib.parse import quote, urlencode
+from urllib.request import Request as UrlRequest, urlopen
+
 from fastapi import APIRouter, Depends, Request, HTTPException
 from sqlalchemy.orm import Session
 
@@ -26,6 +32,9 @@ from app.services.order_service import create_order, get_orders_by_email
 
 router = APIRouter(prefix="/api/v1/guest-orders", tags=["Guest Orders"])
 cfg    = get_settings()
+ORDER_SERVICE_BASE_URL = os.getenv("ORDER_SERVICE_BASE_URL", "http://localhost:8007").rstrip("/")
+INTERNAL_SERVICE_TOKEN = os.getenv("INTERNAL_SERVICE_TOKEN", "").strip()
+ORDER_LOOKUP_TIMEOUT_SECONDS = float(os.getenv("ORDER_LOOKUP_TIMEOUT_SECONDS", "5"))
 
 
 def _addr(a) -> AddressOut | None:
@@ -75,6 +84,30 @@ def request_lookup(payload: LookupRequestIn, request: Request, db: Session = Dep
     )
 
 
+def _lookup_order_service_orders(email: str, order_number: str | None = None) -> list[dict]:
+    if not INTERNAL_SERVICE_TOKEN:
+        return []
+
+    query = {"email": email}
+    if order_number:
+        query["order_number"] = order_number
+    url = f"{ORDER_SERVICE_BASE_URL}/api/v1/orders/internal/guest-lookup?{urlencode(query, quote_via=quote)}"
+    request = UrlRequest(
+        url,
+        headers={"Accept": "application/json", "X-Internal-Token": INTERNAL_SERVICE_TOKEN},
+        method="GET",
+    )
+    try:
+        with urlopen(request, timeout=ORDER_LOOKUP_TIMEOUT_SECONDS) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except (HTTPError, URLError, TimeoutError, json.JSONDecodeError, OSError):
+        return []
+
+    data = payload.get("data") if isinstance(payload, dict) else {}
+    orders = data.get("orders") if isinstance(data, dict) else []
+    return orders if isinstance(orders, list) else []
+
+
 @router.post("/verify-lookup", response_model=LookupVerifyOut)
 def verify_lookup(payload: LookupVerifyIn, db: Session = Depends(get_db)):
     """
@@ -89,12 +122,20 @@ def verify_lookup(payload: LookupVerifyIn, db: Session = Depends(get_db)):
         raise HTTPException(500, "Session token not issued after verification.")
 
     require_lookup_session(db, session.session_token)
-    orders = get_orders_by_email(db, session.email)
+    local_orders = get_orders_by_email(db, session.email)
 
     if payload.order_number:
-        orders = [o for o in orders if o.order_number == payload.order_number]
+        local_orders = [o for o in local_orders if o.order_number == payload.order_number]
+
+    orders = [order.model_dump(mode="json") for order in [_out(o) for o in local_orders]]
+    remote_orders = _lookup_order_service_orders(session.email, payload.order_number)
+    known_order_numbers = {order.get("order_number") or order.get("orderNumber") for order in orders}
+    for remote_order in remote_orders:
+        remote_number = remote_order.get("orderNumber") or remote_order.get("order_number")
+        if remote_number not in known_order_numbers:
+            orders.append(remote_order)
 
     return LookupVerifyOut(
-        orders=[_out(o) for o in orders],
+        orders=orders,
         message=f"Found {len(orders)} order(s) for {session.email}.",
     )

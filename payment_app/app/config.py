@@ -23,3 +23,9 @@ def _clean_env_value(value: str) -> str:
 RAZORPAY_KEY = _clean_env_value(os.getenv("RAZORPAY_KEY", ""))
 RAZORPAY_SECRET = _clean_env_value(os.getenv("RAZORPAY_SECRET", ""))
 RAZORPAY_WEBHOOK_SECRET = _clean_env_value(os.getenv("RAZORPAY_WEBHOOK_SECRET", ""))
+
+# JWT Configuration
+JWT_SECRET = _clean_env_value(os.getenv("JWT_SECRET", ""))
+if not JWT_SECRET:
+    raise RuntimeError("JWT_SECRET must be configured.")
+JWT_ALGORITHM = "HS256"

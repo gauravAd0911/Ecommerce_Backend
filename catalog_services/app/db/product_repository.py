@@ -3,7 +3,7 @@
 from decimal import Decimal
 from typing import Optional, Tuple
 
-from sqlalchemy import Select, func, or_, select
+from sqlalchemy import Select, func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -77,10 +77,94 @@ class ProductRepository:
             self._apply_sort(base, params.sort)
             .offset((params.page - 1) * params.limit)
             .limit(params.limit)
-            .options(selectinload(Product.images))
+            .options(selectinload(Product.images), selectinload(Product.category))
         )
         result = await self._session.execute(items_query)
         return total, list(result.scalars().all())
+
+    async def get_many_legacy(self, params: ProductFilterParams) -> Tuple[int, list[dict]]:
+        """Return products from the legacy UUID/JSON catalog table shape.
+
+        Some local databases were created before catalog_service.sql was
+        updated. They have description/compare_price/stock_qty/images columns
+        instead of the newer normalized product schema. This read path keeps the
+        storefront alive without destructive table rebuilds.
+        """
+        filters = ["p.is_active = 1"]
+        values: dict[str, object] = {
+            "limit": params.limit,
+            "offset": (params.page - 1) * params.limit,
+        }
+
+        if params.q:
+            filters.append("(p.name LIKE :q OR p.description LIKE :q)")
+            values["q"] = f"%{params.q}%"
+        if params.category:
+            filters.append("c.slug = :category")
+            values["category"] = params.category
+        if params.price_min is not None:
+            filters.append("p.price >= :price_min")
+            values["price_min"] = params.price_min
+        if params.price_max is not None:
+            filters.append("p.price <= :price_max")
+            values["price_max"] = params.price_max
+
+        where_sql = " AND ".join(filters)
+        sort_sql = {
+            SORT_PRICE_ASC: "p.price ASC",
+            SORT_PRICE_DESC: "p.price DESC",
+            SORT_NEWEST: "p.created_at DESC",
+            SORT_RATING_DESC: "p.created_at DESC",
+            SORT_POPULAR: "p.created_at DESC",
+        }.get(params.sort or "", "p.created_at DESC")
+
+        total = await self._session.scalar(
+            text(
+                f"""
+                SELECT COUNT(*)
+                FROM products p
+                LEFT JOIN categories c ON c.id = p.category_id
+                WHERE {where_sql}
+                """
+            ),
+            values,
+        ) or 0
+
+        rows = await self._session.execute(
+            text(
+                f"""
+                SELECT
+                    p.id,
+                    p.category_id,
+                    p.name,
+                    p.slug,
+                    p.description AS short_description,
+                    p.description AS long_description,
+                    p.price,
+                    p.compare_price AS compare_at_price,
+                    p.stock_qty AS stock_quantity,
+                    CASE
+                        WHEN p.stock_qty <= 0 THEN 'out_of_stock'
+                        WHEN p.stock_qty <= 5 THEN 'low_stock'
+                        ELSE 'in_stock'
+                    END AS availability,
+                    p.images,
+                    p.created_at,
+                    p.updated_at,
+                    c.id AS category__id,
+                    c.name AS category__name,
+                    c.slug AS category__slug,
+                    c.description AS category__description
+                FROM products p
+                LEFT JOIN categories c ON c.id = p.category_id
+                WHERE {where_sql}
+                ORDER BY {sort_sql}
+                LIMIT :limit OFFSET :offset
+                """
+            ),
+            values,
+        )
+        return int(total), [dict(row._mapping) for row in rows]
 
     async def get_by_id(self, product_id: int) -> Optional[Product]:
         """Fetch a single active product with its images and tags."""
@@ -106,7 +190,7 @@ class ProductRepository:
             .where(Product.id != product.id)
             .order_by(Product.rating_average.desc())
             .limit(limit)
-            .options(selectinload(Product.images))
+            .options(selectinload(Product.images), selectinload(Product.category))
         )
         result = await self._session.execute(query)
         return list(result.scalars().all())
@@ -139,13 +223,26 @@ class ProductRepository:
             .where(Product.is_featured.is_(True))
             .order_by(Product.rating_average.desc())
             .limit(limit)
-            .options(selectinload(Product.images))
+            .options(selectinload(Product.images), selectinload(Product.category))
         )
         result = await self._session.execute(query)
         return list(result.scalars().all())
 
     async def get_any_by_identifier(self, product_id: int | str) -> Optional[Product]:
         query = select(Product).options(
+            selectinload(Product.images),
+            selectinload(Product.tags),
+            selectinload(Product.category),
+        )
+        if isinstance(product_id, int) or str(product_id).isdigit():
+            query = query.where(Product.id == int(product_id))
+        else:
+            query = query.where(Product.slug == str(product_id))
+        result = await self._session.execute(query)
+        return result.scalar_one_or_none()
+
+    async def get_active_by_identifier(self, product_id: int | str) -> Optional[Product]:
+        query = self._active_products_query().options(
             selectinload(Product.images),
             selectinload(Product.tags),
             selectinload(Product.category),

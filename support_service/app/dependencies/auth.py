@@ -4,14 +4,29 @@ import os
 from typing import Annotated
 
 import jwt
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Cookie, Depends, Header, HTTPException, status
+from dotenv import load_dotenv
+
+load_dotenv()
+
+
+def _extract_token(
+    authorization: Annotated[str | None, Header(alias="Authorization")] = None,
+    access_token: Annotated[str | None, Cookie(alias="access_token")] = None,
+) -> str | None:
+    if authorization and authorization.lower().startswith("bearer "):
+        return authorization.split(" ", 1)[1].strip()
+    return access_token
 
 
 def _decode_token(authorization: str | None) -> dict | None:
-    if not authorization or not authorization.lower().startswith("bearer "):
+    if not authorization:
         return None
 
-    token = authorization.split(" ", 1)[1].strip()
+    token = authorization
+    if authorization.lower().startswith("bearer "):
+        token = authorization.split(" ", 1)[1].strip()
+
     secret = os.getenv("JWT_SECRET")
     if not secret:
         return None
@@ -29,8 +44,10 @@ def _decode_token(authorization: str | None) -> dict | None:
 
 def get_optional_actor(
     authorization: Annotated[str | None, Header(alias="Authorization")] = None,
+    access_token: Annotated[str | None, Cookie(alias="access_token")] = None,
 ):
-    payload = _decode_token(authorization)
+    token = _extract_token(authorization, access_token)
+    payload = _decode_token(token)
     if not payload:
         return None
 
@@ -46,8 +63,9 @@ def get_optional_actor(
 
 def get_actor(
     authorization: Annotated[str | None, Header(alias="Authorization")] = None,
+    access_token: Annotated[str | None, Cookie(alias="access_token")] = None,
 ):
-    actor = get_optional_actor(authorization)
+    actor = get_optional_actor(authorization, access_token)
     if not actor:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
     return actor

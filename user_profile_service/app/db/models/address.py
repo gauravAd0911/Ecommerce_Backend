@@ -22,6 +22,7 @@ class Address(Base):
     state = Column(String(100), nullable=False)
     postal_code = Column(String(20), nullable=False)
     country = Column(String(100), default="India")
+    address_type = Column(String(40), default="Home")
 
     is_default = Column(Boolean, default=False)
 
