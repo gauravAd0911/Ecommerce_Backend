@@ -1,4 +1,4 @@
-from typing import Annotated, Generator, List
+from typing import Annotated, Generator
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -10,7 +10,6 @@ from app.schemas.notification_schema import (
     NotificationCreate,
     NotificationResponse,
     APIResponse,
-    ErrorDetail,
 )
 from app.services.notification_service import NotificationService
 from app.services.email_service import EmailService
@@ -47,23 +46,44 @@ DBSession = Annotated[Session, Depends(get_db)]
 # Device APIs
 # -------------------------------
 @router.post("/devices/register", status_code=status.HTTP_201_CREATED)
+@router.post("/devices", status_code=status.HTTP_201_CREATED)
 def register_device(payload: DeviceRegister, db: DBSession):
     """
-    Register a user device for notifications.
+    Register or refresh a user device for notifications.
     """
-    device = Device(
-        user_id=payload.user_id,
-        device_token=payload.device_token,
-        platform=payload.platform,
+    device = (
+        db.query(Device)
+        .filter(
+            Device.user_id == payload.user_id,
+            Device.device_token == payload.device_token,
+        )
+        .first()
     )
-    db.add(device)
+    message = "Device registered successfully"
+
+    if device:
+        device.platform = payload.platform
+        message = "Device registration refreshed successfully"
+    else:
+        device = Device(
+            user_id=payload.user_id,
+            device_token=payload.device_token,
+            platform=payload.platform,
+        )
+        db.add(device)
+
     db.commit()
     db.refresh(device)
 
     return APIResponse(
         success=True,
-        message="Device registered successfully",
-        data={"device_id": device.id}
+        message=message,
+        data={
+            "device_id": device.id,
+            "user_id": device.user_id,
+            "device_token": device.device_token,
+            "platform": device.platform,
+        }
     )
 
 
@@ -114,12 +134,12 @@ def create_notification(payload: NotificationCreate, db: DBSession):
     return APIResponse(
         success=True,
         message="Notification created successfully",
-        data=notification
+        data=NotificationResponse.model_validate(notification)
     )
 
 
 @router.get("")
-def get_notifications(user_id: int, db: DBSession):
+def get_notifications(user_id: str, db: DBSession):
     """
     Fetch all notifications for a given user.
     """
@@ -127,7 +147,7 @@ def get_notifications(user_id: int, db: DBSession):
     return APIResponse(
         success=True,
         message="Notifications retrieved successfully",
-        data=notifications if notifications else []
+        data=[NotificationResponse.model_validate(n) for n in notifications]
     )
 
 
@@ -154,7 +174,7 @@ def mark_read(notification_id: int, db: DBSession):
     return APIResponse(
         success=True,
         message="Notification marked as read",
-        data=notification
+        data=NotificationResponse.model_validate(notification)
     )
 
 
@@ -231,7 +251,12 @@ def send_email_notification(payload: dict, db: DBSession):
     if success:
         return APIResponse(
             success=True,
-            message="Email sent successfully"
+            message="Email sent successfully",
+            data={
+                "recipient": recipient,
+                "type": notification_type or "generic",
+                "subject": subject,
+            }
         )
     else:
         raise HTTPException(
@@ -284,7 +309,11 @@ def send_whatsapp_notification(payload: dict, db: DBSession):
     if success:
         return APIResponse(
             success=True,
-            message="WhatsApp message sent successfully"
+            message="WhatsApp message sent successfully",
+            data={
+                "recipient": recipient,
+                "type": notification_type or "generic",
+            }
         )
     else:
         raise HTTPException(
@@ -333,7 +362,8 @@ def send_sms_notification(payload: dict, db: DBSession):
         twilio_service.send_sms(recipient, message)
         return APIResponse(
             success=True,
-            message="SMS sent successfully"
+            message="SMS sent successfully",
+            data={"recipient": recipient}
         )
     except Exception as e:
         raise HTTPException(

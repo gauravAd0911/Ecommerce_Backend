@@ -1,0 +1,4 @@
+{
+  "status": 200,
+  "body": "{\"success\":true,\"message\":\"Order created successfully.\",\"data\":{\"orderNumber\":\"ORD-DF408A51\",\"status\":\"PLACED\"},\"error\":null}"
+}

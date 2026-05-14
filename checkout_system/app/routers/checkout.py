@@ -33,6 +33,46 @@ ZONE_SHIPPING = {
 }
 
 
+def _slug_from_product_id(product_id: str) -> str:
+    return product_id.strip().lower().replace("_", "-")[:280] or "product"
+
+
+def _stock_snapshot(item) -> int:
+    return max(int(item.stock_qty if item.stock_qty is not None else item.quantity), int(item.quantity))
+
+
+def _sync_product_snapshot(db: Session, item) -> Product | None:
+    product = (
+        db.query(Product)
+        .filter(Product.id == item.product_id, Product.is_active.is_(True))
+        .first()
+    )
+
+    if product is None and item.name and item.unit_price is not None:
+        product = Product(
+            id=item.product_id,
+            name=item.name,
+            slug=_slug_from_product_id(item.product_id),
+            price=item.unit_price,
+            stock_qty=_stock_snapshot(item),
+            is_active=True,
+        )
+        db.add(product)
+        db.flush()
+        return product
+
+    if product is not None:
+        if item.name:
+            product.name = item.name
+        if item.unit_price is not None:
+            product.price = item.unit_price
+        if item.stock_qty is not None:
+            product.stock_qty = int(item.stock_qty)
+        db.flush()
+
+    return product
+
+
 def _get_user_id(x_user_id: Annotated[str | None, Header(alias="X-User-Id")] = None) -> str | None:
     return x_user_id.strip() if x_user_id else None
 
@@ -122,11 +162,11 @@ def _validate_delivery(db: Session, payload: CheckoutValidateIn, subtotal: Decim
 
 
 def _validate_payload(db: Session, payload: CheckoutValidateIn) -> CheckoutValidateOut:
-    product_ids = [item.product_id for item in payload.items]
-    products = {
-        product.id: product
-        for product in db.query(Product).filter(Product.id.in_(product_ids), Product.is_active.is_(True)).all()
-    }
+    products = {}
+    for item in payload.items:
+        product = _sync_product_snapshot(db, item)
+        if product is not None:
+            products[product.id] = product
 
     issues, subtotal, items_out = _validate_items(db, payload, products)
     shipping, delivery_issues = _validate_delivery(db, payload, subtotal)
@@ -183,7 +223,7 @@ def create_checkout_session(
         guest_token=payload.guest_token,
         address_id=payload.address_id,
         shipping_address=payload.address.model_dump(mode="json") if payload.address else None,
-        items=[item.model_dump() for item in payload.items],
+        items=[item.model_dump(mode="json") for item in payload.items],
         pricing=validation.pricing.model_dump(mode="json"),
         expires_at=expires_at,
     )

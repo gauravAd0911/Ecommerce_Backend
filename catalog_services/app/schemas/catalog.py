@@ -56,6 +56,7 @@ class ProductSummarySchema(_OrmBase):
     size:              Optional[str]   = None
     skin_type:         Optional[str]   = None
     availability:      str
+    stock_quantity:    int
     is_featured:       bool
     rating_average:    float
     rating_count:      int

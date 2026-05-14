@@ -12,8 +12,14 @@ ADDRESS_NOT_FOUND = "Address not found"
 def create_address(db: Session, user_id: str, data: dict):
     """Create a user address, creating the local profile user if needed."""
     try:
-        if address_repository.count_by_user(db, user_id) >= MAX_ADDRESS_LIMIT:
+        existing_count = address_repository.count_by_user(db, user_id)
+        if existing_count >= MAX_ADDRESS_LIMIT:
             raise AddressLimitExceededException(MAX_ADDRESS_LIMIT)
+
+        if existing_count == 0:
+            data["is_default"] = True
+        elif address_repository.count_default_by_user(db, user_id) == 0:
+            data.setdefault("is_default", True)
 
         user = db.query(User).filter(User.id == user_id).first()
         if not user:

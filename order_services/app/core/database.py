@@ -1,8 +1,10 @@
+import logging
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import sessionmaker
 from app.core.config import settings
 
+logger = logging.getLogger(__name__)
 DATABASE_URL = settings.DB_URL or "mysql+pymysql://root:Gaurav%40123@localhost/abt_dev"
 
 engine = create_engine(DATABASE_URL, echo=False)
@@ -16,12 +18,29 @@ def init_db() -> None:
     from app.models.order import Base
     from app.models import order_item, tracking  # noqa: F401
 
-    Base.metadata.create_all(bind=engine)
+    logger.info("Initializing order service database schema")
+    Base.metadata.create_all(bind=engine, checkfirst=True)
     _repair_order_schema()
+    _repair_order_items_schema()
+    logger.info("Order service database schema initialization completed")
 
 
 def _column_exists(inspector, table_name: str, column_name: str) -> bool:
     return column_name in {column["name"] for column in inspector.get_columns(table_name)}
+
+
+def _repair_order_items_schema() -> None:
+    """Repair the order_items schema for the current OrderItem ORM."""
+    inspector = inspect(engine)
+    if "order_items" not in inspector.get_table_names():
+        return
+
+    with engine.begin() as connection:
+        try:
+            connection.execute(text("ALTER TABLE order_items MODIFY COLUMN product_id VARCHAR(100) NULL"))
+        except OperationalError as exc:
+            if "Incorrect column specifier" not in str(exc) and "Duplicate column name" not in str(exc):
+                raise
 
 
 def _index_exists(inspector, table_name: str, index_name: str) -> bool:
@@ -46,6 +65,10 @@ def _repair_order_schema() -> None:
         "guest_email": "VARCHAR(255) NULL",
         "guest_phone": "VARCHAR(30) NULL",
         "total": "DECIMAL(10,2) NULL",
+        "subtotal": "DECIMAL(10,2) NULL",
+        "shipping_amount": "DECIMAL(10,2) NULL",
+        "discount_amount": "DECIMAL(10,2) NULL",
+        "tax_amount": "DECIMAL(10,2) NULL",
         "payment_method": "VARCHAR(50) NULL",
         "shipping_address": "TEXT NULL",
         "item_count": "INT NULL",

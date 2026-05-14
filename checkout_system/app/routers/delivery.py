@@ -113,15 +113,7 @@ def check_delivery(payload: DeliveryCheckIn, db: DbSession):
             .filter(Product.id == item.product_id, Product.is_active.is_(True))
             .first()
         )
-        if not product:
-            unavailable_items.append(
-                {
-                    "product_id": item.product_id,
-                    "reason": "Product is not available.",
-                }
-            )
-            continue
-        if int(product.stock_qty or 0) < item.quantity:
+        if product and int(product.stock_qty or 0) < item.quantity:
             unavailable_items.append(
                 {
                     "product_id": item.product_id,

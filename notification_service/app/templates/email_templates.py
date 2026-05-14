@@ -46,6 +46,8 @@ class EmailTemplates:
         </html>
         """
 
+        items_text = "\n".join([f"- {item['name']} (Qty: {item['quantity']}) - ₹{item['price']}" for item in items])
+        
         text = f"""
         Order Confirmation
 
@@ -54,7 +56,7 @@ class EmailTemplates:
         Thank you for your order! Your order #{order_id} has been confirmed.
 
         Order Details:
-        {"".join([f"- {item['name']} (Qty: {item['quantity']}) - ₹{item['price']}\n" for item in items])}
+        {items_text}
 
         Total: ₹{order_total}
 

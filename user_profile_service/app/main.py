@@ -5,6 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from app.api.v1.endpoints import user, address
+import app.db.models.address  # noqa: F401
+import app.db.models.user  # noqa: F401
 from app.core.config import settings
 from app.db.base import Base
 from app.db.session import SessionLocal, engine

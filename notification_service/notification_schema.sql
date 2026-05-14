@@ -3,7 +3,7 @@ USE abt_dev;
 
 CREATE TABLE devices (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
+    user_id VARCHAR(128) NOT NULL,
     device_token VARCHAR(255) NOT NULL,
     platform VARCHAR(50),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -11,7 +11,7 @@ CREATE TABLE devices (
 
 CREATE TABLE notifications (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
+    user_id VARCHAR(128) NOT NULL,
     title VARCHAR(255),
     message VARCHAR(500),
     type VARCHAR(50),

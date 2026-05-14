@@ -35,9 +35,8 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cfg.allowed_origins,
-    allow_origin_regex=r"http://(localhost|127\.0\.0\.1)(:\d+)?",
-    allow_credentials=True,
+    allow_origins=["*"] if cfg.app_env == "development" else cfg.allowed_origins,
+    allow_credentials=False if cfg.app_env == "development" else True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -89,6 +88,18 @@ async def validation_exception_handler(_: Request, exc: RequestValidationError):
                 }
                 for error in exc.errors()
             ],
+        ),
+    )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(_: Request, exc: Exception):
+    return JSONResponse(
+        status_code=500,
+        content=_error_payload(
+            code="SERVER_ERROR",
+            message="Checkout service failed to process the request.",
+            details=[{"field": "server", "message": str(exc)}] if cfg.app_env == "development" else [],
         ),
     )
 

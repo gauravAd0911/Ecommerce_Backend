@@ -5,6 +5,8 @@ from app.repositories.reservation_repo import ReservationRepository
 from app.repositories.stock_repo import StockRepository
 from app.core.config import settings
 from app.core.constants import ReservationStatus
+from app.models.product import Product
+from app.models.warehouse import Warehouse
 
 
 class ReservationService:
@@ -21,6 +23,7 @@ class ReservationService:
         warehouse_id: int,
         quantity: int,
         idempotency_key: str | None = None,
+        stock_qty: int | None = None,
     ):
         if idempotency_key:
             existing = self.repo.get_by_idempotency_key(idempotency_key)
@@ -29,7 +32,16 @@ class ReservationService:
 
         stock = self.stock_repo.get_stock_for_update(product_id, warehouse_id)
         if not stock:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Stock not found")
+            if settings.DEBUG and stock_qty is not None:
+                self._ensure_product_and_warehouse(product_id, warehouse_id)
+                stock = self.stock_repo.create_stock(
+                    product_id=product_id,
+                    warehouse_id=warehouse_id,
+                    total_quantity=stock_qty,
+                    reserved_quantity=0,
+                )
+            else:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Stock not found")
 
         if stock.available_quantity < quantity:
             raise HTTPException(
@@ -60,6 +72,15 @@ class ReservationService:
             stock.reserved_quantity = max(0, stock.reserved_quantity - reservation.quantity)
 
         self.repo.update_status(reservation, ReservationStatus.RELEASED.value)
+
+    def _ensure_product_and_warehouse(self, product_id: int, warehouse_id: int) -> None:
+        if self.db.get(Product, product_id) is None:
+            self.db.add(Product(id=product_id, name=f"Product {product_id}"))
+
+        if self.db.get(Warehouse, warehouse_id) is None:
+            self.db.add(Warehouse(id=warehouse_id, name=f"Warehouse {warehouse_id}"))
+
+        self.db.flush()
 
     def commit_reservation(self, reservation_id: int):
         reservation = self.repo.get(reservation_id)

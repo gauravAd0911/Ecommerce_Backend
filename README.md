@@ -1,542 +1,321 @@
-# Lumia E-Commerce Backend
+# Lumia Backend
 
-Modern FastAPI microservices backend for the Lumia e-commerce platform. The system comprises **11 independent services** across **6 MySQL databases**, designed for scalability, maintainability, and MVP-ready stock management.
+FastAPI microservices backend for the Lumia/Mahi Skin D2C commerce platform. The codebase is split by business capability: auth, catalog, cart, inventory, checkout, payment, orders, reviews, profile/address book, support, and notifications.
 
-## Technology Stack
+## At A Glance
 
-- **Framework**: FastAPI 0.115.0 + Uvicorn 0.30.6
-- **Database**: MySQL 8.0+ (PyMySQL/aiomysql drivers)
-- **Authentication**: JWT-based with custom auth service
-- **Payment**: Razorpay integration
-- **Frontend**: React Native (localhost:5173)
+| Service | Port | Main path | Database | Purpose |
+| --- | ---: | --- | --- | --- |
+| Auth | 8001 | `Auther_M2/Auther_M/auth` | `auth_m2_db` | Signup/login OTP, JWT sessions, password reset |
+| Catalog | 8014 | `catalog_services` | `abt_dev` | Products, categories, storefront/admin catalog APIs |
+| Cart | 8000 | `ecommerce_cart` | `ecommerce_db` | Guest/user carts and cart pricing |
+| Inventory | 8002 | `Inventory_services` | `inventory_db` | Stock checks and optional reservations |
+| Checkout | 8003 | `checkout_system` | `abt_dev` | Checkout validation, delivery checks, guest OTP, guest orders |
+| Payment | 8006 | `payment_app/payment_app` | `payments_db` | Razorpay order/intent creation, verification, webhooks |
+| Order | 8007 | `order_services` | `abt_dev` | Authenticated order creation/history/tracking |
+| Notification | 8008 | `notification_service` | `abt_dev` | Devices, in-app notifications, email, WhatsApp, SMS |
+| Profile | 8009 | `user_profile_service` | `abt_dev` | User profile and persistent address book |
+| Support | 8010 | `support_service` | `abt_dev` | Customer support tickets/queries |
+| Reviews | 8012 | `review_services` | `review_service` | Product reviews and verified-review checks |
 
-## Project Status
+## Local Requirements
 
-✅ **MVP Complete** - Stock deduction enabled, reservation system disabled via flag  
-✅ **All Services Operational** - 11 services running on ports 8000-8014  
-✅ **Database Schema Finalized** - 6 independent databases with full migrations  
-✅ **Production Ready** - Configuration-driven MVP→Production migration path
-
-## System Architecture
-
-### 11 Microservices Overview
-
-| Service | Port | Database | Responsibility | Status |
-|---------|------|----------|-----------------|--------|
-| **Auth Service** | 8001 | `auth_m2_db` | JWT authentication, OTP signup/login, password reset | ✅ Active |
-| **Catalog Service** | 8014 | `abt_dev` | Product listings, categories, search, filters | ✅ Active |
-| **Cart Service** | 8000 | `ecommerce_db` | Shopping cart management, item add/remove/update | ✅ Active - **Stock validation fixed** |
-| **Inventory Service** | 8002 | `inventory_db` | Stock tracking, validation, reservations (optional flag) | ✅ Active - MVP disabled |
-| **Checkout System** | 8003 | `abt_dev` | Guest checkout, OTP verification, checkout sessions | ✅ Active - **Stock deduction enabled** |
-| **Order Service** | 8007 | `abt_dev` | Order finalization, order history, tracking | ✅ Active - **Stock deduction enabled** |
-| **Payment Service** | 8006 | `payments_db` | Razorpay integration, payment processing | ✅ Active |
-| **Review Service** | 8012 | `review_service` | Product reviews, ratings, review eligibility | ✅ Active |
-| **User Profile Service** | 8009 | `abt_dev` | User profiles, address book management | ✅ Active - **Address update validation fixed** |
-| **Support Service** | 8010 | `abt_dev` | Support tickets, issue tracking | ✅ Active |
-| **Notification Service** | 8008 | `abt_dev` | Push notifications, device registration | ✅ Active |
-
-### Database Architecture
-
-**Shared Database** (`abt_dev`):
-- Catalog, Checkout, Order, Profile, Support, Notification services
-
-**Independent Databases**:
-- `ecommerce_db` - Cart service
-- `inventory_db` - Inventory service  
-- `payments_db` - Payment service
-- `review_service` - Review service
-- `auth_m2_db` - Auth service
-
-### Service Dependencies
-
-```
-Independent Services (8):
-├─ Auth (8001)
-├─ Catalog (8014)
-├─ Cart (8000)
-├─ Inventory (8002) - Optional
-├─ Profile (8009)
-├─ Review (8012)
-├─ Support (8010)
-└─ Notification (8008)
-
-Dependent Chain (3):
-└─ Checkout (8003)
-   └─ Order (8007)
-      └─ Payment (8006)
-```
-
-**Startup Sequence**:
-1. Start independent services first (any order)
-2. Then start Checkout, Order, Payment (in sequence)
-
-## MVP Features & Recent Fixes
-
-### Stock Deduction System (MVP)
-- ✅ Stock immediately deducted when orders complete
-- ✅ Works for both authenticated users and guest checkouts
-- ✅ Configuration flag to enable/disable: `DEDUCT_STOCK_ON_ORDER`
-- ✅ Optional reservation system (disabled by default via `ENABLE_STOCK_RESERVATION=false`)
-
-**Configuration**:
-```env
-# MVP (Current)
-ENABLE_STOCK_RESERVATION=false      # No reservation complexity
-DEDUCT_STOCK_ON_ORDER=true          # Always deduct stock
-
-# Production (Later)
-ENABLE_STOCK_RESERVATION=true       # Add reservation system
-DEDUCT_STOCK_ON_ORDER=true          # Keep deduction
-```
-
-### Recent Bug Fixes (Verified)
-1. **Cart 409 Conflict Error** - Fixed stock validation logic in cart service
-2. **Address Update Validation** - Fixed PATCH request validation for partial updates
-
-See [MVP_STOCK_DEDUCTION_GUIDE.md](MVP_STOCK_DEDUCTION_GUIDE.md) for complete implementation details.
-
-## Quick Start Guide
-
-### Prerequisites
 - Python 3.10+
-- MySQL 8.0+ (running on localhost:3306)
-- Credentials: `root/Gaurav@123`
+- MySQL 8+
+- Service `.env` files configured with DB credentials and any provider secrets
+- Razorpay keys in `payment_app/payment_app/app/config.py` environment variables when live payments are used
 
-### Setup All Services
-```bash
-# From project root
-python docs/setup_all_services.py
+Each service is a standalone FastAPI app. Start only the services needed for the flow you are testing.
+
+```powershell
+# Examples
+cd "Auther_M2\Auther_M"; python -m uvicorn auth.main:app --host 0.0.0.0 --port 8001 --reload
+cd "checkout_system"; python -m uvicorn app.main:app --host 0.0.0.0 --port 8003 --reload
+cd "payment_app\payment_app"; python -m uvicorn app.main:app --host 0.0.0.0 --port 8006 --reload
+cd "user_profile_service"; python -m uvicorn app.main:app --host 0.0.0.0 --port 8009 --reload
+cd "notification_service"; python -m uvicorn app.main:app --host 0.0.0.0 --port 8008 --reload
 ```
 
-Or setup individually:
-```bash
-cd Auther_M2/Auther_M && python -m uvicorn auth.main:app --port 8001
-cd catalog_services && python -m uvicorn app.main:app --port 8014
-cd ecommerce_cart && python -m uvicorn ecommerce_cart.app.main:app --port 8000
-# ... etc
-```
+OpenAPI docs are available at `http://localhost:<port>/docs`.
 
-### Verify Services
-```bash
-curl http://localhost:8001/docs    # Auth Service
-curl http://localhost:8014/docs    # Catalog Service
-curl http://localhost:8000/docs    # Cart Service
-```
+## Storefront Flow
 
-### Access OpenAPI Documentation
-Open browser to any service's `/docs` endpoint:
-- Auth: `http://localhost:8001/docs`
-- Catalog: `http://localhost:8014/docs`
-- Cart: `http://localhost:8000/docs`
-- Checkout: `http://localhost:8003/docs`
-- Order: `http://localhost:8007/docs`
-- (All others available at their respective ports)
+1. Auth creates or resumes a customer session.
+2. Catalog supplies products.
+3. Cart stores selected products and quantities.
+4. Checkout validates cart, inventory, and delivery address.
+5. Payment creates a Razorpay intent/order and verifies the returned gateway result.
+6. Order or guest checkout persists the final order after payment verification.
+7. Profile stores reusable customer addresses.
+8. Notification sends order/customer communication.
 
-## Database Connection Details
-
-### MySQL Setup
-```
-Host: localhost
-Port: 3306
-User: root
-Password: Gaurav@123
-```
-
-### Database List
-- `auth_m2_db` - Authentication service
-- `ecommerce_db` - Cart service
-- `inventory_db` - Inventory service  
-- `payments_db` - Payment service
-- `review_service` - Review service
-- `abt_dev` - Shared (Catalog, Checkout, Order, Profile, Support, Notification)
-
-### Initialize Databases
-Each service folder contains `.sql` schema files:
-```bash
-mysql -u root -p < auth_m2_db.sql
-mysql -u root -p < ecommerce_db.sql
-mysql -u root -p < inventory_db.sql
-# ... etc
-```
-
-## API Gateway Recommended Deployment
-
-For production, deploy with an API Gateway/BFF:
-
-```
-Mobile App (React Native)
-       ↓
-   API Gateway (Recommended)
-       ↓
-  ┌─────────────────────────────────┐
-  │  11 Independent Microservices   │
-  │  (Auth, Catalog, Cart, Order,   │
-  │   Checkout, Payment, etc.)      │
-  └─────────────────────────────────┘
-       ↓
-  ┌──────────────────────────────────┐
-  │  6 MySQL Databases               │
-  │  (auth_m2_db, ecommerce_db, ...) │
-  └──────────────────────────────────┘
-```
-
-Benefits:
-- Single entry point for mobile app
-- Unified authentication/authorization
-- Request/response transformation
-- Rate limiting and caching
-- Service composition
-
-## Frontend Integration Points
-
-## Key Service Contracts
-
-### 1. Auth Service (Port 8001)
-
-**Database**: `auth_m2_db`
-
-**Key Endpoints**:
-```
-POST   /api/v1/auth/signup/initiate           - Send signup OTP
-POST   /api/v1/auth/signup/verify-otp         - Verify OTP, create user
-POST   /api/v1/auth/login                     - Login with email/password
-POST   /api/v1/auth/token/refresh             - Refresh access token
-POST   /api/v1/auth/logout                    - Logout user
-GET    /api/v1/auth/me                        - Get current user
-POST   /api/v1/auth/password/forgot/initiate  - Start password reset
-POST   /api/v1/auth/password/forgot/verify-otp
-POST   /api/v1/auth/password/reset
-```
-
-**Login Request/Response**:
-```json
-POST /api/v1/auth/login
-Request: { "identifier": "email@example.com", "password": "secret123" }
-Response: {
-  "access_token": "jwt_token",
-  "refresh_token": "jwt_token",
-  "user": { "id": "user-id", "email": "...", "phone": "...", "role": "consumer" }
-}
-```
-
-### 2. Catalog Service (Port 8014)
-
-**Database**: `abt_dev` (shared)
-
-**Key Endpoints**:
-```
-GET    /api/v1/home                      - Home banners & featured products
-GET    /api/v1/products                  - Product listing (search, filter, sort)
-GET    /api/v1/products/filters           - Available filters (categories, prices)
-GET    /api/v1/products/{product_id}     - Product details
-GET    /api/v1/products/{product_id}/related
-GET    /api/v1/categories                - Category listing
-```
-
-**Product Query Parameters**: `q, category, price_min, price_max, skin_type, sort, page, limit`
-
-### 3. Cart Service (Port 8000)
-
-**Database**: `ecommerce_db` (independent)
-
-**Key Endpoints**:
-```
-GET    /api/cart                    - Fetch active cart
-POST   /api/cart/items              - Add item to cart
-PUT    /api/cart/items/{product_id} - Update item quantity
-DELETE /api/cart/items/{product_id} - Remove item
-DELETE /api/cart                    - Clear cart
-```
-
-**Add Item Request**:
-```json
-POST /api/cart/items
-{ "product_id": 1, "quantity": 2 }
-```
-
-**Status**: ✅ **Stock validation fixed** - Now correctly handles default stock values
-
-### 4. Checkout Service (Port 8003)
-
-**Database**: `abt_dev` (shared)
-
-**Key Endpoints**:
-```
-POST   /api/v1/checkout/validate           - Validate cart & inventory
-POST   /api/v1/checkout/session            - Create checkout session
-POST   /api/v1/guest-checkout/request-verification  - Send OTP
-POST   /api/v1/guest-checkout/verify       - Verify OTP
-POST   /api/v1/guest-orders                - Place guest order
-GET    /api/v1/guest-orders/{order_id}     - Get guest order
-```
-
-**Status**: ✅ **Stock deduction enabled** - Stock decreases when guest order completes
-
-### 5. Order Service (Port 8007)
-
-**Database**: `abt_dev` (shared)
-
-**Key Endpoints**:
-```
-POST   /api/v1/orders                - Create authenticated order
-GET    /api/v1/orders                - List user orders
-GET    /api/v1/orders/{order_id}     - Order details
-GET    /api/v1/orders/{order_id}/tracking - Tracking info
-```
-
-**Status**: ✅ **Stock deduction enabled** - Stock decreases when order finalizes
-
-### 6. Inventory Service (Port 8002) - Optional for MVP
-
-**Database**: `inventory_db` (independent)
-
-**Status**: MVP disabled via `ENABLE_STOCK_RESERVATION=false`. Stock deduction handled by Order & Checkout services instead.
-
-**Key Endpoints** (when enabled):
-```
-POST   /api/v1/inventory/validate              - Validate stock
-POST   /api/v1/inventory/reservations          - Reserve stock
-DELETE /api/v1/inventory/reservations/{id}    - Release reservation
-POST   /api/v1/inventory/reservations/{id}/commit
-```
-
-### 7. Payment Service (Port 8006)
-
-**Database**: `payments_db` (independent)
-
-**Key Endpoints**:
-```
-POST   /api/v1/payments/orders           - Create Razorpay order
-GET    /api/v1/payments/orders/{order_id}
-POST   /api/v1/payments/verify            - Verify payment
-GET    /api/v1/payments/status            - Payment status
-```
-
-### 8. User Profile Service (Port 8009)
-
-**Database**: `abt_dev` (shared)
-
-**Key Endpoints**:
-```
-GET    /api/v1/users/me             - Get current user profile
-PUT    /api/v1/users/me             - Update profile
-GET    /api/v1/users/addresses      - Get address book
-POST   /api/v1/users/addresses      - Add address
-PUT    /api/v1/users/addresses/{id} - Update address (PATCH working)
-DELETE /api/v1/users/addresses/{id} - Delete address
-```
-
-**Status**: ✅ **PATCH validation fixed** - Address updates now allow partial payloads
-
-### 9. Review Service (Port 8012)
-
-**Database**: `review_service` (independent)
-
-**Key Endpoints**:
-```
-GET    /api/v1/reviews/product/{product_id}   - Get product reviews
-POST   /api/v1/reviews                        - Create review
-GET    /api/v1/reviews/user                   - Get user's reviews
-GET    /api/v1/reviews/eligibility/{product_id}
-```
-
-### 10. Support Service (Port 8010)
-
-**Database**: `abt_dev` (shared)
-
-**Key Endpoints**:
-```
-POST   /api/v1/support/tickets      - Create support ticket
-GET    /api/v1/support/tickets      - List user tickets
-GET    /api/v1/support/categories   - Support categories
-```
-
-### 11. Notification Service (Port 8008)
-
-**Database**: `abt_dev` (shared)
-
-**Key Endpoints**:
-```
-POST   /api/v1/notifications/devices    - Register device
-GET    /api/v1/notifications/me         - Get user notifications
-```
-
-## Configuration & Environment
-
-Each service has a `.env` file in its root directory. Key variables:
+## Important Configuration
 
 ```env
-# Database
-DATABASE_URL=mysql+pymysql://root:Gaurav@123@localhost:3306/service_db
-
-# Auth (for services that require it)
-AUTH_SERVICE_URL=http://localhost:8001
-SECRET_KEY=your-secret-key
-
-# Port
-PORT=8000
-
-# MVP Features (Order & Checkout only)
+# Inventory/checkout MVP behavior
 ENABLE_STOCK_RESERVATION=false
 DEDUCT_STOCK_ON_ORDER=true
 
-# Payment (Payment service)
-RAZORPAY_KEY_ID=your_key
-RAZORPAY_SECRET_KEY=your_secret
+# Payment service
+RAZORPAY_KEY=...
+RAZORPAY_SECRET=...
+RAZORPAY_WEBHOOK_SECRET=...
 ```
 
-## Common API Response Format
+The current MVP keeps stock reservation optional and deducts stock when an order completes.
 
-Most endpoints return:
+## Key APIs
+
+### Auth Service `:8001`
+
+Common endpoints live under `/api/v1/auth`. The auth service supports registration/login OTP flows, password reset, token refresh, and protected user identity. Use the OpenAPI docs for the exact request models because OTP contexts are validated by the auth service.
+
+### Catalog Service `:8014`
+
+```http
+GET    /api/v1/products
+GET    /api/v1/products/{product_id}
+POST   /api/v1/admin/products
+PATCH  /api/v1/admin/products/{product_id}
+DELETE /api/v1/admin/products/{product_id}
+GET    /api/v1/categories
+```
+
+### Checkout Service `:8003`
+
+```http
+POST /api/v1/checkout/validate
+POST /api/v1/checkout/session
+POST /api/v1/delivery/check
+POST /api/v1/guest-checkout/request-verification
+POST /api/v1/guest-checkout/verify
+POST /api/v1/guest-orders
+GET  /api/v1/guest-orders/{order_id}
+```
+
+Checkout payload example:
+
 ```json
 {
-  "success": true,
-  "message": "Success",
-  "data": { /* Response payload */ }
+  "items": [
+    {
+      "product_id": "product-id",
+      "quantity": 2,
+      "name": "Premium Cotton T-Shirt",
+      "unit_price": 29.99,
+      "stock_qty": 20
+    }
+  ],
+  "address": {
+    "full_name": "Customer Name",
+    "email": "customer@example.com",
+    "line1": "House / street",
+    "line2": "Area",
+    "city": "Mumbai",
+    "state": "Maharashtra",
+    "postal_code": "400001",
+    "country": "IN",
+    "phone": "9876543210"
+  }
 }
 ```
 
-Errors return:
+### Payment Service `:8006`
+
+```http
+POST /api/v1/payments/intent
+POST /api/v1/payments/orders
+POST /api/v1/payments/verify
+GET  /api/v1/payments/{payment_reference}/status
+POST /api/v1/payments/webhooks/razorpay
+```
+
+Frontend/mobile intent payload:
+
 ```json
 {
-  "success": false,
-  "error": "Error message",
-  "details": { /* Additional context */ }
+  "amount": 776.99,
+  "orderReference": "checkout-session-id",
+  "methodLabel": "Razorpay",
+  "reservationId": "reservation-id",
+  "guestToken": "optional-guest-token",
+  "currency": "INR",
+  "receipt": "Mahi-123",
+  "notes": {
+    "userId": "user-id-or-guest-checkout",
+    "email": "customer@example.com",
+    "phone": "9876543210",
+    "reservationId": "reservation-id"
+  }
 }
 ```
 
-## Testing & Troubleshooting
+The `amount` is in major units for `/intent` when `orderReference`, `methodLabel`, or `reservationId` is present. The service converts it to paise for Razorpay.
 
-### Verify All Services Running
-```bash
-# Check auth service
-curl http://localhost:8001/docs
+### Order Service `:8007`
 
-# Check all other services
-for port in 8000 8002 8003 8006 8007 8008 8009 8010 8012 8014; do
-  echo "Port $port:"
-  curl -s http://localhost:$port/docs | head -5
-done
+```http
+POST /api/v1/orders
+GET  /api/v1/orders
+GET  /api/v1/orders/{order_id}
+GET  /api/v1/orders/{order_id}/tracking
 ```
 
-### Test Stock Deduction Flow
-```bash
-# 1. Create authenticated user account
-curl -X POST http://localhost:8001/api/v1/auth/signup/initiate \
-  -H "Content-Type: application/json" \
-  -d '{"email": "test@example.com", "phone": "9876543210"}'
+### User Profile And Address Book `:8009`
 
-# 2. Verify OTP (use code from email/SMS)
-curl -X POST http://localhost:8001/api/v1/auth/signup/verify-otp \
-  -H "Content-Type: application/json" \
-  -d '{"context_id": "...", "otp": "123456"}'
+Authenticated address APIs use the bearer token first. For local service testing, the profile service also accepts `X-User-Id`.
 
-# 3. Add product to cart
-curl -X POST http://localhost:8000/api/cart/items \
-  -H "Authorization: Bearer <access_token>" \
-  -H "Content-Type: application/json" \
-  -d '{"product_id": 1, "quantity": 2}'
-
-# 4. Create order
-curl -X POST http://localhost:8007/api/v1/orders \
-  -H "Authorization: Bearer <access_token>" \
-  -H "Content-Type: application/json" \
-  -d '{"items": [{"product_id": 1, "quantity": 2}]}'
-
-# 5. Check product stock decreased in database
-mysql -u root -p abt_dev -e "SELECT id, name, stock FROM products WHERE id=1;"
+```http
+GET    /api/v1/users/me/addresses/
+GET    /api/v1/users/me/addresses/{address_id}
+POST   /api/v1/users/me/addresses/
+PATCH  /api/v1/users/me/addresses/{address_id}
+PATCH  /api/v1/users/me/addresses/{address_id}/default
+DELETE /api/v1/users/me/addresses/{address_id}
 ```
 
-### Database Monitoring Queries
-```sql
--- Check current stock levels
-SELECT id, name, stock FROM products ORDER BY stock ASC LIMIT 10;
+Create address payload:
 
--- View recent orders (with stock deduction)
-SELECT id, order_number, status, created_at FROM orders ORDER BY created_at DESC LIMIT 10;
-
--- Check guest orders (with stock deduction)
-SELECT id, order_number, status, created_at FROM guest_orders ORDER BY created_at DESC LIMIT 10;
-
--- View order items
-SELECT oi.id, oi.order_id, oi.product_id, oi.quantity 
-FROM order_items oi 
-JOIN orders o ON oi.order_id = o.id 
-ORDER BY o.created_at DESC LIMIT 20;
+```json
+{
+  "full_name": "Customer Name",
+  "phone": "9876543210",
+  "address_line1": "House / building / street",
+  "address_line2": "Landmark or area",
+  "landmark": "Near metro",
+  "city": "Mumbai",
+  "state": "Maharashtra",
+  "postal_code": "400001",
+  "country": "India",
+  "address_type": "Home",
+  "is_default": true
+}
 ```
 
-### Common Issues & Solutions
+Address rules implemented in code:
 
-| Issue | Cause | Solution |
-|-------|-------|----------|
-| 409 Conflict on adding to cart | Stock validation too strict | Already fixed - check cart.py validation logic |
-| PATCH address returns validation error | NULL value rejection too broad | Already fixed - check address.py validator |
-| Stock not decreasing | DEDUCT_STOCK_ON_ORDER not true | Check `.env` file and restart service |
-| Reservation system active | Feature flag enabled | Set ENABLE_STOCK_RESERVATION=false in `.env` |
-| Service not found on port | Service not running | Start service with `uvicorn app.main:app --port <PORT>` |
-| Database connection error | Wrong credentials/host | Verify MySQL running, check `.env` DATABASE_URL |
+- `full_name`, `phone`, `address_line1`, `city`, `state`, and `postal_code` are required for create.
+- `phone` must be a valid Indian 10-digit mobile number. A leading `91` country code is accepted.
+- `postal_code` must be exactly 6 digits.
+- First saved address becomes default when no default exists.
+- Maximum saved address count is controlled by `MAX_ADDRESS_LIMIT`.
+- `PATCH` supports partial updates and rejects null for required DB columns.
 
-### Logs & Debugging
+Compatibility routes also exist under `/account/addresses`.
 
-Each service logs to stdout. Check for:
+### Notification Service `:8008`
+
+```http
+POST   /api/v1/notifications/devices/register
+DELETE /api/v1/notifications/devices/{device_id}
+POST   /api/v1/notifications
+GET    /api/v1/notifications?user_id=user-id
+PATCH  /api/v1/notifications/{notification_id}/read
+POST   /api/v1/notifications/email
+POST   /api/v1/notifications/whatsapp
+POST   /api/v1/notifications/sms
 ```
-- Stock deduction logs in Order Service (port 8007)
-- Stock deduction logs in Checkout System (port 8003)
-- Validation errors in Cart Service (port 8000)
-- Address update logs in Profile Service (port 8009)
+
+Device registration:
+
+```json
+{
+  "user_id": "user-id",
+  "device_token": "device-token",
+  "platform": "web"
+}
 ```
 
-Enable debug logging in `.env`:
+Create in-app notification:
+
+```json
+{
+  "user_id": "user-id",
+  "title": "Order confirmed",
+  "message": "Your order has been confirmed.",
+  "type": "order_confirmation"
+}
+```
+
+Email notification:
+
+```json
+{
+  "type": "order_confirmation",
+  "recipient": "customer@example.com",
+  "data": {
+    "orderId": "ORD-123",
+    "customerName": "Customer Name",
+    "orderTotal": 776.99,
+    "items": [
+      { "name": "Premium Cotton T-Shirt", "quantity": 1, "price": 29.99 }
+    ]
+  }
+}
+```
+
+WhatsApp notification:
+
+```json
+{
+  "type": "order_update",
+  "recipient": "+919876543210",
+  "message": "Your order has been shipped."
+}
+```
+
+SMS notification:
+
+```json
+{
+  "recipient": "+919876543210",
+  "message": "Your order has been confirmed."
+}
+```
+
+### Support Service `:8010`
+
+Support APIs manage customer queries/tickets under the service's `/api` routes. Check `support_service/app/api/support_routes.py` and `/docs` for the exact request models.
+
+### Review Service `:8012`
+
+Review APIs support product review listing and create/update flows. Eligibility checks are service-owned so only valid buyers can review where configured.
+
+## Frontend Environment Mapping
+
+The D2C frontend can target each service independently:
+
 ```env
-LOG_LEVEL=DEBUG
-DEBUG=True
+VITE_USE_MOCK_BACKEND=false
+VITE_MAHI_AUTH_BASE_URL=http://localhost:8001
+VITE_MAHI_PRODUCT_BASE_URL=http://localhost:8014
+VITE_MAHI_CART_BASE_URL=http://localhost:8000
+VITE_MAHI_CHECKOUT_BASE_URL=http://localhost:8003
+VITE_MAHI_INVENTORY_BASE_URL=http://localhost:8002
+VITE_MAHI_PAYMENT_BASE_URL=http://localhost:8006
+VITE_MAHI_ORDER_BASE_URL=http://localhost:8007
+VITE_MAHI_PROFILE_BASE_URL=http://localhost:8009
+VITE_MAHI_SUPPORT_BASE_URL=http://localhost:8010
+VITE_MAHI_NOTIFICATION_BASE_URL=http://localhost:8008
+VITE_MAHI_REVIEW_BASE_URL=http://localhost:8012
+VITE_PAYMENT_MODE=razorpay
+VITE_RAZORPAY_KEY_ID=...
 ```
 
-## Documentation Files
+## Troubleshooting
 
-- [MVP_STOCK_DEDUCTION_GUIDE.md](MVP_STOCK_DEDUCTION_GUIDE.md) - Implementation details
-- [SERVICES_DOCUMENTATION.md](SERVICES_DOCUMENTATION.md) - Complete service reference
-- [SYSTEM_VERIFICATION_REPORT.md](SYSTEM_VERIFICATION_REPORT.md) - System validation
-- [system-architecture.md](system-architecture.md) - Architecture diagrams
+| Problem | Likely cause | What to check |
+| --- | --- | --- |
+| Payment amount differs from checkout total | Frontend/backend pricing mismatch | Send shipping-inclusive `amount` to `/api/v1/payments/intent` and keep product prices as decimals |
+| Address save returns 401 | Missing auth context | Send bearer token or local `X-User-Id` header |
+| Address update returns 422 | Invalid partial payload | Do not send null for required fields; send only changed fields |
+| Stock does not decrease | MVP stock flag off | Confirm `DEDUCT_STOCK_ON_ORDER=true` and restart checkout/order service |
+| Notification endpoint returns provider error | Email/Twilio/WhatsApp env missing | Check notification service provider credentials |
+| Frontend receives HTML instead of JSON | Wrong service base URL | Ensure each `VITE_MAHI_*_BASE_URL` points to a FastAPI service, not the Vite app |
 
-## Production Deployment Checklist
+## Notes For Contributors
 
-- [ ] All 11 services running and healthy
-- [ ] Databases migrated and seeded with test data
-- [ ] Environment variables configured for production
-- [ ] API Gateway/BFF deployed in front of services
-- [ ] CORS configured for frontend domain
-- [ ] JWT secret keys rotated and secured
-- [ ] Payment keys (Razorpay) configured
-- [ ] Logging and monitoring setup
-- [ ] Backup strategy in place
-- [ ] Load testing completed
-
-## Development Workflow
-
-1. **Update database schema** → Update service `.sql` file
-2. **Add new endpoint** → Update Pydantic schema → Update FastAPI route → Test via `/docs`
-3. **Fix bug** → Write test case first → Fix → Verify via test
-4. **Deploy** → Test locally → Push → Deploy all dependent services
-
-## Contributing
-
-- Each service is independent - changes don't require other service restarts
-- Always test via OpenAPI `/docs` before committing
-- Keep `.sql` schema files in sync with SQLAlchemy models
-- Document API changes in service README.md
-
-## Support
-
-For issues or questions:
-1. Check the service `/docs` page for endpoint details
-2. Review logs in terminal output
-3. Check database state with SQL queries
-4. Refer to SERVICES_DOCUMENTATION.md for service-specific info
-5. Check recent fixes: Cart 409 error, Address validation, Stock deduction
-
----
-
-**Last Updated**: May 12, 2026  
-**Status**: MVP Ready for Production  
-**Next Phase**: Add API Gateway for unified frontend integration
+- Keep external provider secrets in service `.env` files only.
+- Keep payment verification on the backend; never expose Razorpay secret keys to the frontend.
+- Treat checkout totals as decimal major units in frontend/API payloads and paise/minor units only inside Razorpay-facing payment service code.
+- Prefer adding new API shapes through service schemas and OpenAPI docs so the frontend can normalize one stable contract.

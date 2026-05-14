@@ -60,7 +60,7 @@ def test_create_address_limit_exceeded(monkeypatch):
     from app.utils.exceptions import AddressLimitExceededException
 
     def mock_create_address(db, user_id, data):
-        raise AddressLimitExceededException(5)
+        raise AddressLimitExceededException(3)
 
     monkeypatch.setattr(
         "app.services.address_service.create_address",
@@ -96,6 +96,76 @@ def test_create_address_invalid_payload():
 
     # Pydantic validation error
     assert response.status_code == 422
+
+
+# =========================
+# TEST: CREATE FIRST ADDRESS_DEFAULT
+# =========================
+
+def test_create_address_sets_default_on_first_address(monkeypatch):
+    """
+    First saved address should become the default when no prior addresses exist.
+    """
+
+    from app.services.address_service import create_address
+
+    class FakeDB:
+        def query(self, *args, **kwargs):
+            return self
+
+        def filter(self, *args, **kwargs):
+            return self
+
+        def first(self):
+            return None
+
+        def add(self, *args, **kwargs):
+            # no-op fake session add
+            pass
+
+        def flush(self):
+            # no-op fake session flush
+            pass
+
+    def mock_count_by_user(db, user_id):
+        return 0
+
+    def mock_count_default_by_user(db, user_id):
+        return 0
+
+    def mock_create(db, data):
+        assert data["is_default"] is True
+        assert data["user_id"] == MOCK_USER_ID
+        return {"id": "addr-123", **data}
+
+    monkeypatch.setattr(
+        "app.repositories.address_repository.count_by_user",
+        mock_count_by_user,
+    )
+    monkeypatch.setattr(
+        "app.repositories.address_repository.count_default_by_user",
+        mock_count_default_by_user,
+    )
+    monkeypatch.setattr(
+        "app.repositories.address_repository.create",
+        mock_create,
+    )
+
+    result = create_address(
+        FakeDB(),
+        MOCK_USER_ID,
+        {
+            "full_name": "Test User",
+            "phone": "9876543210",
+            "address_line1": "Street 1",
+            "city": "Mumbai",
+            "state": "Maharashtra",
+            "postal_code": "400001",
+        },
+    )
+
+    assert result["is_default"] is True
+    assert result["user_id"] == MOCK_USER_ID
 
 
 # =========================

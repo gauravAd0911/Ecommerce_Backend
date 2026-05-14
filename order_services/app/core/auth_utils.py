@@ -32,7 +32,7 @@ def _decode_hs256_subject(token: str) -> str | None:
         if len(parts) != 3:
             return None
 
-        jwt_secret = os.getenv("JWT_SECRET")
+        jwt_secret = os.getenv("JWT_SECRET") or os.getenv("SECRET_KEY")
         if not jwt_secret:
             return None
 

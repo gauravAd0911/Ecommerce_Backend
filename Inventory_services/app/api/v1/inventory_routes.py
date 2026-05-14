@@ -156,6 +156,7 @@ def validate_stock(payload: dict, db: DbSession):
 
 @router.post("/reservations", status_code=201)
 def create_reservation(payload: dict, db: DbSession):
+    print(f"[inventory_routes] create_reservation payload={payload}")
     service = ReservationService(db)
 
     if isinstance(payload.get("items"), list):
@@ -186,6 +187,7 @@ def create_reservation(payload: dict, db: DbSession):
                     warehouse_id=reservation_payload.warehouse_id,
                     quantity=reservation_payload.quantity,
                     idempotency_key=reservation_payload.idempotency_key,
+                    stock_qty=reservation_payload.stock_qty,
                 )
             )
 
@@ -201,6 +203,7 @@ def create_reservation(payload: dict, db: DbSession):
         warehouse_id=reservation_payload.warehouse_id,
         quantity=reservation_payload.quantity,
         idempotency_key=reservation_payload.idempotency_key,
+        stock_qty=reservation_payload.stock_qty,
     )
     return _success_response(
         ReservationResponse.model_validate(reservation).model_dump(),

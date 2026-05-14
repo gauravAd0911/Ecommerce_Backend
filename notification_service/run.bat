@@ -35,7 +35,7 @@ if not exist .env (
     echo DB_HOST=localhost
     echo DB_USER=root
     echo DB_PASSWORD=Gaurav@123
-    echo DB_NAME=abt_dev
+    echo DB_NAME=auth_m2_db
     echo.
     echo TWILIO_ACCOUNT_SID=your_sid_here
     echo TWILIO_AUTH_TOKEN=your_token_here
@@ -52,7 +52,7 @@ REM 5. Create Database
 REM -------------------------------
 echo Creating MySQL database...
 
-mysql -u root -pGaurav@123 -e "CREATE DATABASE IF NOT EXISTS abt_dev;"
+mysql -u root -pGaurav@123 -e "CREATE DATABASE IF NOT EXISTS auth_m2_db;"
 
 IF %ERRORLEVEL% NEQ 0 (
     echo MySQL connection failed. Check username/password.

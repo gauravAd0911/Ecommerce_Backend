@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS orders (
 CREATE TABLE IF NOT EXISTS order_items (
     id INT AUTO_INCREMENT PRIMARY KEY,
     order_id BIGINT UNSIGNED,
-    product_id INT,
+    product_id VARCHAR(100),
     product_name VARCHAR(255),
     price DECIMAL(10,2),
     quantity INT,

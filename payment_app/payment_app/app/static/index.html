@@ -16,7 +16,7 @@ async function pay() {
     msg.textContent = 'Creating order...';
 
     try {
-        const res  = await fetch('http://127.0.0.1:8000/payment/create-order?user_id=1');
+        const res  = await fetch('/payment/create-order?user_id=1');
         const data = await res.json();
         console.log('Order:', data);
 
@@ -38,7 +38,7 @@ async function pay() {
                 msg.style.color = 'blue';
                 msg.textContent = 'Verifying...';
 
-                const vRes = await fetch('http://127.0.0.1:8000/payment/verify', {
+                const vRes = await fetch('/payment/verify', {
                     method:  'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({

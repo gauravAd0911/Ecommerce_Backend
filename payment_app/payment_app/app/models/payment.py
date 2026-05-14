@@ -59,7 +59,15 @@ class Payment(Base):
     id = Column(Integer, primary_key=True, index=True)
 
     payment_reference = Column(String(120), nullable=False, unique=True, index=True)
-    provider = Column(SAEnum(PaymentProvider, name="payment_provider"), nullable=False)
+    provider = Column(
+        SAEnum(
+            PaymentProvider,
+            name="payment_provider",
+            values_callable=lambda enum_cls: [member.value for member in enum_cls],
+            native_enum=False,
+        ),
+        nullable=False,
+    )
     idempotency_key = Column(String(80), nullable=False)
 
     provider_order_id = Column(String(64), nullable=True, index=True)
@@ -67,7 +75,17 @@ class Payment(Base):
 
     amount_minor = Column(Integer, nullable=False)
     currency = Column(String(10), nullable=False, default="INR")
-    status = Column(SAEnum(PaymentState, name="payment_state"), nullable=False, default=PaymentState.CREATING, index=True)
+    status = Column(
+        SAEnum(
+            PaymentState,
+            name="payment_state",
+            values_callable=lambda enum_cls: [member.value for member in enum_cls],
+            native_enum=False,
+        ),
+        nullable=False,
+        default=PaymentState.CREATING,
+        index=True,
+    )
 
     provider_order_create_attempts = Column(Integer, nullable=False, default=0)
     provider_order_last_attempt_at = Column(DateTime, nullable=True)
@@ -95,7 +113,15 @@ class PaymentEvent(Base):
     id = Column(Integer, primary_key=True, index=True)
     payment_id = Column(Integer, ForeignKey("payments.id", ondelete="SET NULL"), nullable=True, index=True)
 
-    provider = Column(SAEnum(PaymentProvider, name="payment_event_provider"), nullable=False)
+    provider = Column(
+        SAEnum(
+            PaymentProvider,
+            name="payment_event_provider",
+            values_callable=lambda enum_cls: [member.value for member in enum_cls],
+            native_enum=False,
+        ),
+        nullable=False,
+    )
     provider_event_id = Column(String(64), nullable=False)
     event_type = Column(String(80), nullable=False)
     signature_verified = Column(Boolean, nullable=False, default=False)

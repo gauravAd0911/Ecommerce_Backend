@@ -11,6 +11,7 @@ class ReservationCreateRequest(BaseModel):
     product_id: int = Field(..., gt=0)
     warehouse_id: int = Field(..., gt=0)
     quantity: int = Field(..., gt=0)
+    stock_qty: Optional[int] = Field(default=None, ge=0)
 
     idempotency_key: Optional[str] = Field(
         default=None,

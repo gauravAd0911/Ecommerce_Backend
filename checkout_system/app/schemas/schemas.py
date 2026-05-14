@@ -181,6 +181,9 @@ class CheckoutItemOut(BaseModel):
 class CheckoutItemIn(BaseModel):
     product_id: str
     quantity: int = Field(..., ge=1, le=100)
+    name: Optional[str] = Field(default=None, max_length=255)
+    unit_price: Optional[Decimal] = Field(default=None, ge=0)
+    stock_qty: Optional[int] = Field(default=None, ge=0)
 
 
 class CheckoutValidateIn(BaseModel):

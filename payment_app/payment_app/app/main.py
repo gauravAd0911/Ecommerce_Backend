@@ -1,5 +1,4 @@
 import asyncio
-import json
 import logging
 import os
 from concurrent.futures import ThreadPoolExecutor
@@ -22,17 +21,6 @@ executor = ThreadPoolExecutor(max_workers=1)
 logger = logging.getLogger(__name__)
 
 
-def _parse_allowed_origins() -> list[str]:
-    raw = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
-    try:
-        parsed = json.loads(raw)
-        if isinstance(parsed, list):
-            return [str(origin) for origin in parsed if origin]
-    except ValueError:
-        return [origin.strip() for origin in raw.split(",") if origin.strip()]
-    return []
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     loop = asyncio.get_event_loop()
@@ -50,7 +38,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_parse_allowed_origins(),
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

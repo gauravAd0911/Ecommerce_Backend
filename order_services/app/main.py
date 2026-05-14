@@ -2,6 +2,7 @@
 import json
 import os
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,16 +11,30 @@ from fastapi.responses import JSONResponse
 from app.api.order_routes import router as order_router
 from app.core.database import init_db
 
+# Load environment variables from .env file
+load_dotenv()
+
 
 def _parse_allowed_origins() -> list[str]:
-    raw = os.getenv("ALLOWED_ORIGINS", "[\"http://localhost:5173\", \"http://127.0.0.1:5173\"]")
-    try:
-        parsed = json.loads(raw)
-        if isinstance(parsed, list):
-            return [str(origin) for origin in parsed if origin]
-    except ValueError:
-        return [origin.strip() for origin in raw.split(",") if origin.strip()]
-    return []
+    # Default allowed origins for local development and production
+    default_origins = [
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:3000",
+        "http://localhost:8080",
+    ]
+    
+    raw = os.getenv("ALLOWED_ORIGINS", "")
+    if raw:
+        try:
+            parsed = json.loads(raw)
+            if isinstance(parsed, list):
+                return [str(origin).strip() for origin in parsed if origin]
+        except (ValueError, TypeError):
+            return [origin.strip() for origin in raw.split(",") if origin.strip()]
+    
+    return default_origins
 
 
 def create_application() -> FastAPI:
@@ -29,12 +44,17 @@ def create_application() -> FastAPI:
         description="Handles order processing, tracking, and history",
     )
 
+    # Configure CORS middleware with proper defaults
+    allowed_origins = _parse_allowed_origins()
+    print(f"[CORS] Allowed origins: {allowed_origins}")
+    
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=_parse_allowed_origins(),
+        allow_origins=allowed_origins,
         allow_credentials=True,
-        allow_methods=["*"],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
         allow_headers=["*"],
+        expose_headers=["*"],
     )
 
     def _error_payload(*, code: str, message: str, details=None):
@@ -81,6 +101,9 @@ def create_application() -> FastAPI:
     @app.on_event("startup")
     def startup() -> None:
         init_db()
+
+    # Ensure the schema is initialized as soon as the application is created.
+    init_db()
 
     app.include_router(order_router)
 

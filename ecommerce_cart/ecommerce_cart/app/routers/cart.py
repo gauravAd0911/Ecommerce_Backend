@@ -105,6 +105,7 @@ def _cart_payload(cart: CartResponse) -> dict:
                     "slug": item.product.slug,
                     "name": item.product.name,
                     "price": item.product.price,
+                    "stock": item.product.stock,
                     "image_url": item.product.image_url,
                 },
             }
@@ -192,6 +193,9 @@ def _resolve_product_for_add(db: Session, payload: AddCartItemRequest) -> Produc
         .first()
     )
     if product is not None:
+        _sync_product_snapshot(product, payload)
+        db.commit()
+        db.refresh(product)
         return product
 
     product_name = (payload.product_name or payload.name or "").strip()
@@ -212,6 +216,20 @@ def _resolve_product_for_add(db: Session, payload: AddCartItemRequest) -> Produc
     db.commit()
     db.refresh(product)
     return product
+
+
+def _sync_product_snapshot(product: Product, payload: AddCartItemRequest) -> None:
+    product_name = (payload.product_name or payload.name or "").strip()
+    if product_name:
+        product.name = product_name
+    if payload.price is not None:
+        product.price = float(payload.price)
+    if payload.stock is not None:
+        product.stock = int(payload.stock)
+    if payload.slug:
+        product.slug = payload.slug
+    if payload.image_url:
+        product.image_url = payload.image_url
 
 
 def _get_cart_item(db: Session, cart_id: int, product_id: int) -> CartItem | None:

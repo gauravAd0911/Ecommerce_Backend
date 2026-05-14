@@ -19,11 +19,20 @@ def create(db: Session, data: dict):
 
 
 def get_by_user(db: Session, user_id: str):
-    return db.query(Address).filter(Address.user_id == user_id).all()
+    return (
+        db.query(Address)
+        .filter(Address.user_id == user_id)
+        .order_by(Address.is_default.desc())
+        .all()
+    )
 
 
 def count_by_user(db: Session, user_id: str):
     return db.query(Address).filter(Address.user_id == user_id).count()
+
+
+def count_default_by_user(db: Session, user_id: str):
+    return db.query(Address).filter(Address.user_id == user_id, Address.is_default.is_(True)).count()
 
 
 def get_by_id(db: Session, address_id: str):

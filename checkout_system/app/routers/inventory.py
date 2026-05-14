@@ -43,52 +43,88 @@ def _active_reserved_quantity(db: Session, product_id: str) -> int:
     return int(reserved_quantity or 0)
 
 
+def _slug_from_product_id(product_id: str) -> str:
+    return product_id.strip().lower().replace("_", "-")[:280] or "product"
+
+
+def _stock_snapshot(item) -> int:
+    return max(int(item.stock_qty if item.stock_qty is not None else item.quantity), int(item.quantity))
+
+
+def _sync_product_snapshot(db: Session, item) -> Product | None:
+    product = (
+        db.query(Product)
+        .filter(Product.id == item.product_id, Product.is_active.is_(True))
+        .first()
+    )
+
+    if product is None and item.name and item.unit_price is not None:
+        product = Product(
+            id=item.product_id,
+            name=item.name,
+            slug=_slug_from_product_id(item.product_id),
+            price=item.unit_price,
+            stock_qty=_stock_snapshot(item),
+            is_active=True,
+        )
+        db.add(product)
+        db.flush()
+        return product
+
+    if product is not None:
+        if item.name:
+            product.name = item.name
+        if item.unit_price is not None:
+            product.price = item.unit_price
+        if item.stock_qty is not None:
+            product.stock_qty = int(item.stock_qty)
+        db.flush()
+
+    return product
+
+
 def _validate_items(db: Session, items) -> InventoryValidateOut:
     issues: list[InventoryIssueOut] = []
 
     for item in items:
-      product = (
-          db.query(Product)
-          .filter(Product.id == item.product_id, Product.is_active.is_(True))
-          .first()
-      )
-      if not product:
-          issues.append(
-              InventoryIssueOut(
-                  product_id=item.product_id,
-                  available_quantity=0,
-                  requested_quantity=item.quantity,
-                  message="This product is no longer available.",
-                  stock_state="out_of_stock",
-              )
-          )
-          continue
+        product = _sync_product_snapshot(db, item)
+        if not product:
+            issues.append(
+                InventoryIssueOut(
+                    product_id=item.product_id,
+                    available_quantity=0,
+                    requested_quantity=item.quantity,
+                    message="This product is no longer available.",
+                    stock_state="out_of_stock",
+                )
+            )
+            continue
 
-      available_quantity = max(int(product.stock_qty or 0) - _active_reserved_quantity(db, product.id), 0)
-      if item.quantity > available_quantity:
-          issues.append(
-              InventoryIssueOut(
-                  product_id=product.id,
-                  available_quantity=available_quantity,
-                  requested_quantity=item.quantity,
-                  message=(
-                      f"Only {available_quantity} unit(s) of {product.name} are available right now."
-                      if available_quantity > 0
-                      else f"{product.name} is currently out of stock."
-                  ),
-                  stock_state="limited" if available_quantity > 0 else "out_of_stock",
-              )
-          )
-      elif available_quantity <= LIMITED_STOCK_THRESHOLD:
-          issues.append(
-              InventoryIssueOut(
-                  product_id=product.id,
-                  available_quantity=available_quantity,
-                  requested_quantity=item.quantity,
-                  message=f"Limited stock: only {available_quantity} unit(s) of {product.name} remain.",
-                  stock_state="limited",
-              )
-          )
+        available_quantity = max(int(product.stock_qty or 0) - _active_reserved_quantity(db, product.id), 0)
+        if item.quantity > available_quantity:
+            issues.append(
+                InventoryIssueOut(
+                    product_id=product.id,
+                    available_quantity=available_quantity,
+                    requested_quantity=item.quantity,
+                    message=(
+                        f"Only {available_quantity} unit(s) of {product.name} are available right now."
+                        if available_quantity > 0
+                        else f"{product.name} is currently out of stock."
+                    ),
+                    stock_state="limited" if available_quantity > 0 else "out_of_stock",
+                )
+            )
+        elif available_quantity <= LIMITED_STOCK_THRESHOLD:
+            issues.append(
+                InventoryIssueOut(
+                    product_id=product.id,
+                    available_quantity=available_quantity,
+                    requested_quantity=item.quantity,
+                    message=f"Limited stock: only {available_quantity} unit(s) of {product.name} remain.",
+                    stock_state="limited",
+                )
+            )
 
     blocking = [issue for issue in issues if issue.requested_quantity > issue.available_quantity]
     return InventoryValidateOut(is_available=len(blocking) == 0, issues=issues)

@@ -24,7 +24,7 @@ MYSQL_HOST = _env("MYSQL_HOST", "127.0.0.1")
 MYSQL_PORT = int(_env("MYSQL_PORT", "3306"))
 MYSQL_USER = _env("MYSQL_USER", "root")
 MYSQL_PASSWORD = _env("MYSQL_PASSWORD", "Gaurav@123")
-MYSQL_DB = _env("MYSQL_DB", "abt_dev")
+MYSQL_DB = _env("MYSQL_DB", "auth_m2_db")
 
 DATABASE_URL = (
     f"mysql+pymysql://{quote_plus(MYSQL_USER)}:{quote_plus(MYSQL_PASSWORD)}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DB}"

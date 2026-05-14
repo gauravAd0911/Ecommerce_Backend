@@ -11,7 +11,14 @@ class OrderRepository:
     def create_order(self, **kwargs):
         order = Order(**kwargs)
         self.db.add(order)
-        self.db.flush()
+        self.db.flush()  # Ensure ID is generated
+        
+        # Verify order was created with required fields
+        if not order.id:
+            raise ValueError("Order ID was not generated after flush. Database error.")
+        if not order.order_number:
+            raise ValueError("Order number was not set. Database error.")
+        
         return order
 
     def add_items(self, order_id, items):
@@ -29,8 +36,14 @@ class OrderRepository:
     def get_all_orders(self):
         return self.db.query(Order).order_by(Order.created_at.desc()).all()
 
-    def get_orders_for_user(self, user_id):
-        return self.db.query(Order).filter(Order.user_id == user_id).all()
+    def get_orders_for_user(self, user_id, email=None):
+        query = self.db.query(Order).filter(Order.user_id == user_id)
+        normalized_email = str(email or "").lower().strip()
+        if normalized_email:
+            query = self.db.query(Order).filter(
+                (Order.user_id == user_id) | (Order.guest_email == normalized_email)
+            )
+        return query.order_by(Order.created_at.desc()).all()
 
     def get_guest_orders_by_email(self, email, order_number=None, limit=20):
         query = self.db.query(Order).filter(Order.guest_email == str(email or "").lower().strip())
@@ -42,18 +55,29 @@ class OrderRepository:
         return self.db.query(Order).filter(Order.id == order_id).first()
 
     def get_order_by_number(self, order_number):
-        return self.db.query(Order).filter(Order.order_number == order_number).first()
+        result = self.db.query(Order).filter(Order.order_number == order_number).first()
+        if result:
+            self.db.refresh(result)
+        return result
 
     def get_order_by_payment_reference(self, payment_reference):
         return self.db.query(Order).filter(Order.payment_reference == payment_reference).first()
 
-    def get_order_for_user(self, order_id, user_id):
-        query = self.db.query(Order).filter(Order.user_id == user_id)
+    def get_order_for_user(self, order_id, user_id, email=None):
+        normalized_email = str(email or "").lower().strip()
+        query = self.db.query(Order).filter(
+            (Order.user_id == user_id) | (Order.guest_email == normalized_email)
+            if normalized_email
+            else (Order.user_id == user_id)
+        )
         if str(order_id).isdigit():
             query = query.filter(Order.id == int(order_id))
         else:
             query = query.filter(Order.order_number == str(order_id))
-        return query.first()
+        result = query.first()
+        if result:
+            self.db.refresh(result)
+        return result
 
     def get_items_for_order(self, order_id):
         return self.db.query(OrderItem).filter(OrderItem.order_id == order_id).all()
